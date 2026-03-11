@@ -168,14 +168,77 @@ if check_password():
     if 'session_data' not in st.session_state:
         st.session_state.session_data = []
 
-    # Sezione Input
+  # Sezione Input
     st.divider()
     input_mode = st.radio("Metodo inserimento:", ["Scatta Foto", "Scegli dalla Galleria"], horizontal=True)
 
     foto_bytes = None
     if input_mode == "Scatta Foto":
         camera_img = st.camera_input("Inquadra l'etichetta")
-        if camera_img: foto_bytes = camera_img.getvalue()
+        if camera_img: 
+            foto_bytes = camera_img.getvalue()
     else:
         uploaded_file = st.file_uploader("Carica immagine", type=['jpg', 'jpeg', 'png'])
-        if uploaded_
+        if uploaded_file: 
+            foto_bytes = uploaded_file.getvalue()
+
+    # Processamento AI
+    if foto_bytes:
+        with st.spinner('L\'AI sta leggendo l\'etichetta...'):
+            testo_ocr = analizza_con_google(foto_bytes)
+            if testo_ocr:
+                info = estrai_dati_chirurgica(testo_ocr)
+                linea_calc = "1" if info["larghezza"] in [1200, 1225, 1250] else "2"
+                
+                with st.form("conferma_dati"):
+                    st.subheader("📝 Verifica Dati")
+                    f_bar = st.text_input("📦 Codice a barre / ID Collo", info["barcode"])
+                    f_forn = st.text_input("🏭 Produttore/Fornitore", info["fornitore"])
+                    f_data = st.text_input("📅 Data Arrivo", info["data_etichetta"])
+                    f_color = st.text_input("🎨 Codice Colore", info["codice_colore"])
+
+                    c1, c2, c3 = st.columns(3)
+                    f_spess = c1.number_input("📏 Spessore", value=info["spessore"], format="%.2f")
+                    f_peso = c2.number_input("⚖️ Peso (kg)", value=info["peso"])
+                    f_lin = c3.number_input("↔️ M. Lineari", value=info["lunghezza"], format="%.1f")
+                    
+                    f_desc = st.text_input("📄 Descrizione", info["descrizione"])
+                    f_linea = st.selectbox("🏗️ Linea", ["1", "2"], index=0 if linea_calc=="1" else 1)
+                    
+                    if st.form_submit_button("AGGIUNGI RIGA AL CARICO"):
+                        m_quadri = f_lin * (float(info["larghezza"])/1000) if info["larghezza"] > 0 else 0.0
+                        st.session_state.session_data.append({
+                            "Codice a barre": f_bar, "Produttore/Fornitore": f_forn, "Spessore dichiarato": f_spess,
+                            "Arrivo": f_data, "Descrizione": f_desc, "Codice Colore": f_color, "Peso": f_peso,
+                            "Metri Quadri": round(m_quadri, 1), "Terminato": "", "Linea": f_linea, "Metri Lineari": f_lin
+                        })
+                        st.balloons()
+                        st.success("Riga aggiunta!")
+
+    # Tabella Riassuntiva
+    if st.session_state.session_data:
+        st.divider()
+        df = pd.DataFrame(st.session_state.session_data)
+        st.markdown("### 📋 Riepilogo Carico")
+        st.dataframe(df, use_container_width=True)
+
+        # Esportazione Excel
+        output = BytesIO()
+        with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
+            df.to_excel(writer, index=False, sheet_name='Carico SB')
+        
+        st.download_button(
+            label="📥 SCARICA EXCEL FINALE",
+            data=output.getvalue(),
+            file_name=f"Carico_SB_{datetime.now().strftime('%Y%m%d_%H%M')}.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        )
+
+        if st.button("🗑️ Svuota sessione"):
+            st.session_state.session_data = []
+            st.rerun()
+
+    # Sidebar Logout
+    if st.sidebar.button("Esci (Logout)"):
+        st.session_state["password_correct"] = False
+        st.rerun()
