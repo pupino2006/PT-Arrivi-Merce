@@ -1,0 +1,18 @@
+{
+  "short_name": "Arrivi Merce",
+  "name": "Gestione Arrivi Merce",
+  "description": "Applicazione per la gestione e il controllo della merce in entrata.",
+  "icons": [
+    {
+      "src": "ptsimbolo.png",
+      "type": "image/png",
+      "sizes": "512x512",
+      "purpose": "any maskable"
+    }
+  ],
+  "start_url": ".",
+  "display": "standalone",
+  "theme_color": "#76bc21",
+  "background_color": "#ffffff",
+  "orientation": "portrait"
+}
