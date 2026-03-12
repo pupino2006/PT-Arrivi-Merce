@@ -6,180 +6,171 @@ from io import BytesIO
 from google.cloud import vision
 
 # --- CONFIGURAZIONE PAGINA ---
-st.set_page_config(page_title="PT - Carico Merci", layout="centered")
+st.set_page_config(page_title="PT Carico Merci", layout="centered")
 
-# --- CSS PERSONALIZZATO (STYLE PT) ---
+# --- CSS STILE APP MODERNA (GIOVANE E PULITO) ---
 st.markdown("""
     <style>
-    /* Reset e Base */
-    .stApp { background-color: #f0f2f5; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+    /* Reset generale */
+    .stApp { background-color: #f8f9fa; font-family: 'Inter', -apple-system, sans-serif; }
     
-    /* Container Bianco Centrale */
-    [data-testid="stVerticalBlock"] > div:has(.main-card) {
+    /* Header stile App */
+    .app-header {
         background: white;
-        padding: 0;
-        border-radius: 0;
-        box-shadow: 0 0 20px rgba(0,0,0,0.1);
-    }
-
-    /* Header e Logo */
-    .header-pt {
-        background: white;
-        padding: 20px;
+        padding: 1.5rem;
         text-align: center;
-        border-bottom: 3px solid #004a99;
-        margin-bottom: 0px;
+        border-bottom: 1px solid #eee;
+        margin-bottom: 2rem;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.02);
     }
-    .header-pt h1 { color: #004a99; font-weight: 800; margin: 0; font-size: 24px; text-transform: uppercase; }
+    .app-header h1 { color: #1a73e8; font-weight: 800; font-size: 22px; margin: 0; }
 
-    /* Tabs Stile PT */
-    .stTabs [data-baseweb="tab-list"] {
-        background-color: #004a99;
-        padding: 5px 10px;
-    }
-    .stTabs [data-baseweb="tab"] {
-        color: white !important;
-        opacity: 0.7;
-        font-weight: bold;
+    /* Card per i form */
+    .stForm {
+        background: white !important;
         border: none !important;
-    }
-    .stTabs [aria-selected="true"] {
-        opacity: 1 !important;
-        border-bottom: 4px solid white !important;
-    }
-
-    /* Form e Input */
-    label { color: #004a99 !important; font-weight: bold !important; text-transform: uppercase; font-size: 13px !self; }
-    .stTextInput input, .stNumberInput input, .stSelectbox select {
-        border-radius: 8px !important;
-        border: 1px solid #ccc !important;
+        padding: 20px !important;
+        border-radius: 16px !important;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.05) !important;
     }
 
-    /* Bottoni */
+    /* Input personalizzati */
+    label { font-size: 12px !important; color: #5f6368 !important; text-transform: uppercase; letter-spacing: 0.5px; }
+    .stTextInput input, .stNumberInput input {
+        border-radius: 10px !important;
+        border: 1px solid #dadce0 !important;
+        padding: 12px !important;
+        background: #fdfdfd !important;
+    }
+
+    /* Bottoni stile App */
     .stButton>button {
         width: 100%;
-        border-radius: 8px !important;
-        background-color: #004a99 !important;
+        border-radius: 12px !important;
+        background-color: #1a73e8 !important;
         color: white !important;
-        font-weight: bold !important;
-        padding: 15px !important;
-        transition: 0.3s;
-    }
-    .stButton>button:hover { background-color: #003366 !important; }
-    
-    /* Bottone Invia (Verde) */
-    div.stButton > button:first-child:contains("SALVA") {
-        background-color: #28a745 !important;
+        font-weight: 700 !important;
+        padding: 0.8rem !important;
         border: none !important;
+        transition: all 0.2s;
     }
+    .stButton>button:hover { transform: translateY(-1px); box-shadow: 0 4px 8px rgba(26,115,232,0.3); }
+    
+    /* Bottone Scanner (Giallo/Arancio) */
+    div[data-testid="stExpander"] { border: none !important; background: transparent !important; }
+    
+    /* Tabs */
+    .stTabs [data-baseweb="tab-list"] { gap: 10px; }
+    .stTabs [data-baseweb="tab"] {
+        background-color: white;
+        border-radius: 10px 10px 0 0;
+        padding: 10px 20px;
+        color: #5f6368;
+    }
+    .stTabs [aria-selected="true"] { color: #1a73e8 !important; border-bottom: 3px solid #1a73e8 !important; }
     </style>
     """, unsafe_allow_html=True)
 
-# --- LOGICA ESTRAZIONE (GOOGLE VISION) ---
+# --- LOGICA ESTRAZIONE ---
 def analizza_etichetta(image_bytes):
     try:
         client = vision.ImageAnnotatorClient()
         image = vision.Image(content=image_bytes)
         response = client.text_detection(image=image)
-        texts = response.text_annotations
-        return texts[0].description if texts else ""
+        return response.text_annotations[0].description if response.text_annotations else ""
     except: return ""
 
 def cerca_barcode(testo):
-    # Regex per vari formati di barcode (es: S + cifre, o stringhe alfanumeriche lunghe)
     match = re.search(r'\b(S\d{7,15}|[0-9]{10,20}|[A-Z0-9]{15,})\b', testo)
     return match.group(1) if match else ""
 
-# --- INTERFACCIA ---
-
-st.markdown('<div class="header-pt"><h1>PT - CARICO MERCI</h1></div>', unsafe_allow_html=True)
+# --- UI APP ---
+st.markdown('<div class="app-header"><h1>🚀 PT CARICO MERCI</h1></div>', unsafe_allow_html=True)
 
 if 'archivio' not in st.session_state:
     st.session_state.archivio = []
 
-tab1, tab2 = st.tabs(["📋 INSERIMENTO", "📦 ARCHIVIO"])
+tab1, tab2 = st.tabs(["➕ NUOVO CARICO", "📂 STORICO SESSIONE"])
 
 with tab1:
-    with st.container():
-        st.markdown('<div style="padding: 20px;">', unsafe_allow_html=True)
+    # --- SEZIONE ACQUISIZIONE ---
+    col_cam, col_file = st.columns(2)
+    
+    with col_cam:
+        with st.expander("📷 SCATTA FOTO"):
+            foto = st.camera_input("Inquadra l'etichetta")
+    
+    with col_file:
+        file_caricato = st.file_uploader("📁 CARICA FOTO/PDF", type=['jpg','png','jpeg','pdf'])
+
+    testo_ocr = ""
+    input_effettivo = foto if foto else file_caricato
+    
+    if input_effettivo:
+        testo_ocr = analizza_etichetta(input_effettivo.getvalue())
+        st.toast("Dati estratti!", icon="✅")
+
+    # --- FORM DI INSERIMENTO ---
+    with st.form("form_carico", clear_on_submit=True):
+        st.markdown("### 📝 Scheda Tecnica")
         
-        # Caricamento
-        foto = st.camera_input("📷 SCANSIONA ETICHETTA")
+        # Codice e Fornitore
+        col1, col2 = st.columns([3, 2])
+        f_barcode = col1.text_input("📦 CODICE A BARRE", value=cerca_barcode(testo_ocr))
+        f_fornitore = col2.text_input("🏭 FORNITORE", value="Lampre" if "LAMPRE" in testo_ocr.upper() else "")
+
+        # Descrizione e Colore
+        f_descrizione = st.text_input("📄 DESCRIZIONE", placeholder="Es. Fe Plast 9010...")
+        f_colore = st.text_input("🎨 CODICE COLORE")
+
+        # Dati Tecnici
+        c3, c4, c5 = st.columns(3)
+        f_spessore = c3.number_input("📏 SPESSORE", format="%.2f", step=0.01)
+        f_peso = c4.number_input("⚖️ PESO (KG)", step=1)
+        f_mq = c5.number_input("📐 MQ", step=0.01)
+
+        # Logistica
+        c6, c7, c8 = st.columns(3)
+        f_arrivo = c6.date_input("📅 DATA ARRIVO", datetime.now())
+        f_linea = c7.selectbox("🏗️ LINEA", ["1", "2"])
+        f_terminato = c8.selectbox("🏁 STATO", ["IN CORSO", "TERMINATO"])
+
+        submit = st.form_submit_button("REGISTRA CARICO")
         
-        testo_ocr = ""
-        if foto:
-            testo_ocr = analizza_etichetta(foto.getvalue())
-            st.success("Etichetta letta correttamente!")
-
-        # --- FORM DATI ---
-        with st.form("form_carico"):
-            st.markdown("### DATI MATERIALE")
-            
-            # Codice a barre con tasto dedicato
-            col_code, col_btn = st.columns([3,1])
-            barcode_rilevato = cerca_barcode(testo_ocr)
-            f_barcode = col_code.text_input("CODICE A BARRE", value=barcode_rilevato)
-            if col_btn.form_submit_button("🔍 SCAN"):
-                # In Streamlit il pulsante all'interno del form resetta, 
-                # ma qui lo usiamo come indicatore visivo o trigger logico
-                pass
-
-            col1, col2 = st.columns(2)
-            f_fornitore = col1.text_input("PRODUTTORE / FORNITORE", value="Lampre" if "LAMPRE" in testo_ocr.upper() else "")
-            f_spessore = col2.number_input("SPESSORE DICHIARATO", format="%.2f", step=0.01)
-            
-            col3, col4 = st.columns(2)
-            f_arrivo = col3.date_input("DATA ARRIVO", datetime.now())
-            f_colore = col4.text_input("CODICE COLORE")
-            
-            f_descrizione = st.text_area("DESCRIZIONE", placeholder="Es: Fe Plast 9010...")
-            
-            col5, col6, col7 = st.columns(3)
-            f_peso = col5.number_input("PESO (KG)", step=1)
-            f_mq = col6.number_input("METRI QUADRI", step=0.01)
-            f_linea = col7.selectbox("LINEA", ["1", "2"])
-            
-            f_terminato = st.checkbox("TERMINATO", value=False)
-
-            submit = st.form_submit_button("🚀 SALVA NELL'ELENCO")
-            
-            if submit:
-                nuovo_dato = {
-                    "Codice a barre": f_barcode,
-                    "Produttore/Fornitore": f_fornitore,
-                    "Spessore dichiarato": f_spessore,
-                    "Arrivo": f_arrivo.strftime("%Y-%m-%d"),
-                    "Descrizione": f_descrizione,
-                    "Codice Colore": f_colore,
-                    "Peso": f_peso,
-                    "Metri Quadri": f_mq,
-                    "Terminato": "SI" if f_terminato else "NO",
-                    "Linea": f_linea
-                }
-                st.session_state.archivio.append(nuovo_dato)
-                st.toast("Dato salvato con successo!")
-
-        st.markdown('</div>', unsafe_allow_html=True)
+        if submit:
+            nuovo_dato = {
+                "Codice a barre": f_barcode,
+                "Produttore/Fornitore": f_fornitore,
+                "Spessore dichiarato": f_spessore,
+                "Arrivo": f_arrivo.strftime("%Y-%m-%d"),
+                "Descrizione": f_descrizione,
+                "Codice Colore": f_colore,
+                "Peso": f_peso,
+                "Metri Quadri": f_mq,
+                "Terminato": f_terminato,
+                "Linea": f_linea
+            }
+            st.session_state.archivio.append(nuovo_dato)
+            st.success("Dato aggiunto alla sessione!")
 
 with tab2:
-    st.markdown('<div style="padding: 20px;">', unsafe_allow_html=True)
     if st.session_state.archivio:
         df = pd.DataFrame(st.session_state.archivio)
+        st.markdown("### Materiale in questa sessione")
         st.dataframe(df, use_container_width=True)
         
-        # Esporta in Excel
+        # Download
         towrite = BytesIO()
         df.to_excel(towrite, index=False, engine='xlsxwriter')
         st.download_button(
-            label="📥 SCARICA EXCEL COMPLETO",
+            label="📥 ESPORTA EXCEL",
             data=towrite.getvalue(),
-            file_name=f"carico_merci_{datetime.now().strftime('%Y%m%d')}.xlsx",
+            file_name=f"carico_{datetime.now().strftime('%d%m_%H%M')}.xlsx",
             mime="application/vnd.ms-excel"
         )
         
-        if st.button("🗑️ CANCELLA TUTTA LA SESSIONE"):
+        if st.button("🗑️ RESET"):
             st.session_state.archivio = []
             st.rerun()
     else:
-        st.info("Nessun dato caricato in questa sessione.")
-    st.markdown('</div>', unsafe_allow_html=True)
+        st.info("Inizia a scansionare per vedere i dati qui.")
