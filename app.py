@@ -131,3 +131,4 @@ with tab2:
         if st.button("🗑️ CANCELLA TUTTO"):
             st.session_state.archivio = []
             st.rerun()
+
