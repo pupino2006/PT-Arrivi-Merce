@@ -1,13 +1,11 @@
 import streamlit as st
 import pandas as pd
-import cv2
 import numpy as np
 import re
 import os
 from datetime import datetime
 from io import BytesIO
 from google.cloud import vision
-from pyzbar.pyzbar import decode
 from PIL import Image
 from streamlit_qrcode_scanner import qrcode_scanner
 
@@ -140,6 +138,7 @@ with tab2:
         if st.button("🗑️ CANCELLA TUTTO"):
             st.session_state.archivio = []
             st.rerun()
+
 
 
 
