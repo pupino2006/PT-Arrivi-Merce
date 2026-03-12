@@ -1,10 +1,14 @@
 import streamlit as st
 import pandas as pd
+import cv2
+import numpy as np
 import re
 import os
 from datetime import datetime
 from io import BytesIO
 from google.cloud import vision
+from pyzbar.pyzbar import decode
+from PIL import Image
 from streamlit_barcode_reader import barcode_reader
 
 # 1. Configurazione della pagina
@@ -68,18 +72,27 @@ with tab1:
 
     # 2. Scanner Rapido (Stile JS) - Appare solo se attivato
     if st.session_state.show_quick_scan:
-            st.markdown("### 📷 Inquadra il Codice")
+            st.markdown("### 📷 Scatta una foto al Codice")
+            foto_codice = st.camera_input("Inquadra il QR/Barcode", key="barcode_camera")
             
-            # Questa libreria apre la camera e legge il codice
-            # 'barcode' conterrà il valore letto
-            barcode_risultato = barcode_reader(key='lettore_codici')
-            
-            if barcode_risultato:
-                st.session_state.temp_scan["barcode"] = barcode_risultato
-                st.session_state.show_quick_scan = False
-                st.rerun()
+            if foto_codice:
+                # Trasformiamo la foto in un formato leggibile dal lettore
+                img = Image.open(foto_codice)
+                img_array = np.array(img)
                 
-            if st.button("❌ CHIUDI SCANNER"):
+                # Cerchiamo il codice nella foto
+                detected_barcodes = decode(img_array)
+                
+                if detected_barcodes:
+                    codice_estratto = detected_barcodes[0].data.decode('utf-8')
+                    st.success(f"Codice letto: {codice_estratto}")
+                    st.session_state.temp_scan["barcode"] = codice_estratto
+                    st.session_state.show_quick_scan = False
+                    st.rerun()
+                else:
+                    st.warning("Nessun codice rilevato. Riprova ad inquadrare meglio.")
+            
+            if st.button("❌ CHIUDI"):
                 st.session_state.show_quick_scan = False
                 st.rerun()
 
@@ -136,5 +149,6 @@ with tab2:
         if st.button("🗑️ CANCELLA TUTTO"):
             st.session_state.archivio = []
             st.rerun()
+
 
 
