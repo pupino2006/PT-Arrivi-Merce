@@ -8,13 +8,20 @@ from io import BytesIO
 from google.cloud import vision
 from PIL import Image
 
-# Funzione per caricare il CSS
+# 1. Configurazione della pagina (sempre come prima istruzione)
+st.set_page_config(page_title="SB App Arrivi", layout="centered", page_icon="ptsimbolo.png")
+
+# 2. Funzione per caricare il CSS
 def local_css(file_name):
     try:
         with open(file_name) as f:
             st.markdown(f'<style>{f.read()}</style>', unsafe_allow_html=True)
     except FileNotFoundError:
-        pass # Evita errori se il file non viene trovato localmente
+        st.error(f"File {file_name} non trovato!") 
+
+# 3. Caricamento file locale e icone FontAwesome
+local_css("style.css")
+st.markdown('<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">', unsafe_allow_html=True)
 
 # Carica il file
 local_css("style.css")
@@ -159,5 +166,6 @@ if check_password():
             if st.button("🗑️ CANCELLA TUTTO"):
                 st.session_state.archivio = []
                 st.rerun()
+
 
 
