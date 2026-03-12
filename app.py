@@ -6,7 +6,7 @@ import json
 from datetime import datetime
 from io import BytesIO
 from google.cloud import vision
-from streamlit_barcode_scanner import st_barcode_scanner
+from streamlit_qr_barcode_scanner import qr_code_scanner
 
 # 1. Configurazione della pagina
 st.set_page_config(page_title="SB App Arrivi", layout="centered", page_icon="ptsimbolo.png")
@@ -70,13 +70,18 @@ with tab1:
             st.success("Dati estratti!")
 
     # 2. SCANNER RAPIDO BARCODE (Logica JS - fuori dal form)
-    if st.session_state.show_quick_scan:
+if st.session_state.show_quick_scan:
         st.markdown("### 📷 Inquadra il Codice")
-        barcode_letto = st_barcode_scanner()
-        if barcode_letto:
+        # Questa libreria restituisce un dizionario
+        result = qr_code_scanner(key='my_scanner')
+        
+        if result:
+            # Estraiamo il testo dal risultato dello scanner
+            barcode_letto = result
             st.session_state.temp_scan["barcode"] = barcode_letto
             st.session_state.show_quick_scan = False
             st.rerun()
+            
         if st.button("❌ CHIUDI SCANNER"):
             st.session_state.show_quick_scan = False
             st.rerun()
@@ -144,3 +149,4 @@ with tab2:
         if st.button("🗑️ CANCELLA TUTTO"):
             st.session_state.archivio = []
             st.rerun()
+
