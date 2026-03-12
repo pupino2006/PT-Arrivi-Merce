@@ -8,83 +8,16 @@ from io import BytesIO
 from google.cloud import vision
 from PIL import Image
 
-# --- CONFIGURAZIONE PAGINA ---
-st.set_page_config(page_title="SB App Arrivi", layout="centered", page_icon="ptsimbolo.png")
+# Funzione per caricare il CSS
+def local_css(file_name):
+    try:
+        with open(file_name) as f:
+            st.markdown(f'<style>{f.read()}</style>', unsafe_allow_html=True)
+    except FileNotFoundError:
+        pass # Evita errori se il file non viene trovato localmente
 
-# --- CSS OTTIMIZZATO ---
-st.markdown("""
-    <style>
-    /* Sfondo e Font Generale */
-    .stApp { 
-        background-color: #f7f9fc; 
-        font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; 
-    }
-
-    /* Contenitore principale per simulare un'app card */
-    .block-container {
-        padding-top: 2rem !important;
-        max-width: 500px !important;
-    }
-
-    /* Testi e Label: Nero pieno e leggibile */
-    label, p, h1, h2, h3, .stMarkdown { 
-        color: #1a1a1a !important; 
-        font-weight: 600 !important; 
-    }
-
-    /* Input Fields (Bordi arrotondati e focus azzurro) */
-    .stTextInput input, .stNumberInput input, .stSelectbox div[data-baseweb="select"] {
-        border-radius: 12px !important;
-        border: 1.5px solid #d1d9e6 !important;
-        background-color: white !important;
-        color: #000000 !important;
-        padding: 5px !important;
-    }
-    
-    .stTextInput input:focus {
-        border-color: #004a99 !important;
-        box-shadow: 0 0 0 2px rgba(0,74,153,0.2) !important;
-    }
-
-    /* BOTTONI PRINCIPALI: Blu PT, Testo Bianco, Effetto Feedback */
-    div.stButton > button:first-child {
-        width: 100%;
-        background-color: #004a99 !important;
-        color: #ffffff !important;
-        border-radius: 15px !important;
-        border: none !important;
-        height: 55px !important;
-        font-size: 18px !important;
-        font-weight: bold !important;
-        transition: all 0.3s ease !important;
-        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1) !important;
-    }
-
-    div.stButton > button:first-child:hover {
-        background-color: #003366 !important;
-        transform: translateY(-2px) !important;
-        box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15) !important;
-    }
-
-    /* Bottoni secondari (es. quelli dentro le colonne) */
-    div[data-testid="column"] .stButton > button {
-        background-color: #ffffff !important;
-        color: #004a99 !important;
-        border: 2px solid #004a99 !important;
-        height: 45px !important;
-    }
-
-    /* Header Personalizzato per look Mobile */
-    .header-app {
-        text-align: center;
-        padding: 10px;
-        background-color: #004a99;
-        border-radius: 15px;
-        color: white !important;
-        margin-bottom: 25px;
-    }
-    </style>
-    """, unsafe_allow_html=True)
+# Carica il file
+local_css("style.css")
 
 # --- FUNZIONI DI SUPPORTO ---
 def analizza_con_google(image_bytes):
@@ -226,4 +159,5 @@ if check_password():
             if st.button("🗑️ CANCELLA TUTTO"):
                 st.session_state.archivio = []
                 st.rerun()
+
 
