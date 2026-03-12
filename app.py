@@ -71,21 +71,21 @@ with tab1:
             st.success("Dati estratti dalla foto!")
 
     # 2. Scanner Rapido (Stile JS) - Appare solo se attivato
-if st.session_state.show_quick_scan:
-        st.markdown("### 📷 Scannerizza il Codice")
-        # Questo componente apre la camera direttamente nel browser
-        # Funziona bene su Chrome/Safari dei telefoni
-        barcode_letto = qrcode_scanner(key='scanner_veloce')
-        
-        if barcode_letto:
-            st.success(f"Codice rilevato: {barcode_letto}")
-            st.session_state.temp_scan["barcode"] = barcode_letto
-            st.session_state.show_quick_scan = False
-            st.rerun()
+    if st.session_state.show_quick_scan:
+            st.markdown("### 📷 Scannerizza il Codice")
+            # Questo componente apre la camera direttamente nel browser
+            # Funziona bene su Chrome/Safari dei telefoni
+            barcode_letto = qrcode_scanner(key='scanner_veloce')
             
-        if st.button("❌ CHIUDI SCANNER"):
-            st.session_state.show_quick_scan = False
-            st.rerun()
+            if barcode_letto:
+                st.success(f"Codice rilevato: {barcode_letto}")
+                st.session_state.temp_scan["barcode"] = barcode_letto
+                st.session_state.show_quick_scan = False
+                st.rerun()
+                
+            if st.button("❌ CHIUDI SCANNER"):
+                st.session_state.show_quick_scan = False
+                st.rerun()
 
     # 3. Form di Carico
     with st.form("form_carico_unico", clear_on_submit=True):
@@ -140,6 +140,7 @@ with tab2:
         if st.button("🗑️ CANCELLA TUTTO"):
             st.session_state.archivio = []
             st.rerun()
+
 
 
 
