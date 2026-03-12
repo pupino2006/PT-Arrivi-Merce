@@ -94,59 +94,77 @@ if check_password():
             st.error(f"Errore Google Vision: {e}")
             return ""
 
-    def estrai_dati_chirurgica(testo_ocr):
-        righe = [r.strip().upper() for r in testo_ocr.split('\n') if r.strip()]
-        t_completo = " ".join(righe)
-        dati = {
-            "barcode": "Non trovato", "fornitore": "Sconosciuto", "spessore": 0.0,
-            "peso": 0, "larghezza": 0, "lunghezza": 0.0,
-            "data_etichetta": datetime.now().strftime("%d/%m/%Y"),
-            "codice_colore": "", "descrizione": "Verificare materiale"
-        }
-        
-        # Identificazione Fornitore
-        for forn in ["LAMPRE", "MARCEGAGLIA", "ARCELOR", "NOVELIS"]:
-            if forn in t_completo:
-                dati["fornitore"] = "ARCELORMITTAL" if forn == "ARCELOR" else forn
+def estrai_dati_chirurgica(annotation):
+    testo_intero = annotation.text.upper()
+    # Pulizia caratteri comuni errati dall'OCR
+    testo_intero = testo_intero.replace('§', 'S').replace('|', 'I')
+    
+    dati = {
+        "barcode": "Non trovato", "fornitore": "Sconosciuto", 
+        "spessore": 0.0, "peso": 0, "larghezza": 0, "lunghezza": 0.0,
+        "data_etichetta": datetime.now().strftime("%d/%m/%Y"),
+        "codice_colore": "", "descrizione": ""
+    }
 
-        for i, riga in enumerate(righe):
-            # Barcode
-            if 'S' in riga:
-                bc_match = re.search(r'S\s*(\d\s*){9,10}', riga)
-                if bc_match: dati["barcode"] = re.sub(r'\s+', '', bc_match.group(0))
-            # Colore
-            if any(x in riga for x in ["COLOR", "COLOUR", "MP"]):
-                col_match = re.search(r'\b(MP\d{3}|RAL\s*\d{4}|\d{4})\b', riga)
-                if col_match: dati["codice_colore"] = col_match.group(0).replace(' ', '')
-            # Spessore
-            if any(x in riga for x in ["SPESS", "THICK", "THK"]):
-                cerca_in = riga + " " + (righe[i+1] if i+1 < len(righe) else "")
-                val_spess = re.search(r'\b0[.,](\d{2,3})\b|\b0(\d{2})\b', cerca_in)
-                if val_spess:
-                    res = val_spess.group(0).replace(',', '.')
-                    dati["spessore"] = float(res) if '.' in res else float(res)/100
-            # Larghezza
-            if any(x in riga for x in ["LARGH", "WIDTH", "WID"]):
-                cerca_in = riga + " " + (righe[i+1] if i+1 < len(righe) else "")
-                val_largh = re.search(r'\b(1000|1200|1219|1225|1250|1500)\b', cerca_in)
-                if val_largh: dati["larghezza"] = int(val_largh.group(1))
-            # Lunghezza
-            if any(x in riga for x in ["LUNGH", "LENGTH", "M."]):
-                cerca_in = riga + " " + (righe[i+1] if i+1 < len(righe) else "")
-                val_lungh = re.search(r'(\d+[,.]\d{1,2})', cerca_in)
-                if val_lungh: dati["lunghezza"] = float(val_lungh.group(1).replace(',', '.'))
-            # Peso
-            if "NET" in riga or "KG" in riga:
-                cerca_in = riga + " " + (righe[i+1] if i+1 < len(righe) else "")
-                val_peso = re.findall(r'\b\d{4}\b', cerca_in)
-                for p in val_peso:
-                    if 500 < int(p) < 8000 and int(p) != dati["larghezza"]: dati["peso"] = int(p)
-            # Data
-            if any(x in riga for x in ["DATA", "DATE"]):
-                cerca_in = riga + " " + (righe[i+1] if i+1 < len(righe) else "")
-                val_data = re.search(r'(\d{2}/\d{2}/\d{2,4})', cerca_in)
-                if val_data: dati["data_etichetta"] = val_data.group(1)
-        return dati
+    # 1. IDENTIFICAZIONE FORNITORE (LOGICA ESTESA)
+    fornitori_map = {
+        "MARCEGAGLIA": "MARCEGAGLIA",
+        "LAMPRE": "LAMPRE",
+        "ARCELOR": "ARCELORMITTAL",
+        "NOVELIS": "NOVELIS",
+        "VARCOLOR": "VARCOLOR",
+        "METALCOAT": "METALCOAT",
+        "SANDRINI": "SANDRINI METALLI",
+        "VETRORESINA": "VETRORESINA SPA",
+        "FIBROSAN": "FIBROSAN",
+        "RIVIERASCA": "RIVIERASCA"
+    }
+    
+    for chiave, nome in fornitori_map.items():
+        if chiave in testo_intero:
+            dati["fornitore"] = nome
+            break
+
+    # 2. ESTRAZIONE CODICE / BARCODE (CHIRURGICA PER TIPO)
+    if dati["fornitore"] == "LAMPRE":
+        match = re.search(r'S\s*(\d{9,10})', testo_intero)
+        if match: dati["barcode"] = "S" + match.group(1)
+    elif dati["fornitore"] == "SANDRINI METALLI":
+        match = re.search(r'(T\d{5}[-\w]+)', testo_intero)
+        if match: dati["barcode"] = match.group(1)
+    elif dati["fornitore"] == "FIBROSAN":
+        match = re.search(r'(\d{15,})', testo_intero) # Codici lunghi Fibrosan
+        if match: dati["barcode"] = match.group(1)
+    else:
+        # Generico per Varcolor/Novelis/Metalcoat (cerca sequenze numeriche 9-12 cifre)
+        match = re.search(r'\b(\d{9,12})\b', testo_intero)
+        if match: dati["barcode"] = match.group(1)
+
+    # 3. SPESSORE (VTR vs METALLO)
+    # Se VTR o Fibrosan, lo spessore è alto (1.2 - 1.8)
+    if any(x in dati["fornitore"] for x in ["VETRORESINA", "FIBROSAN", "RIVIERASCA"]):
+        match_sp = re.search(r'(\d[.,]\d)', testo_intero)
+        if match_sp: dati["spessore"] = float(match_sp.group(1).replace(',', '.'))
+    else:
+        # Per metalli (0.40 - 0.80)
+        match_sp = re.search(r'(0[.,]\d{2,3})', testo_intero)
+        if match_sp: dati["spessore"] = float(match_sp.group(1).replace(',', '.'))
+
+    # 4. PESO E DIMENSIONI
+    # Peso Netto (Cerca numeri 3-5 cifre vicino a KG o NET)
+    match_peso = re.search(r'(\d{3,5})\s*(?:KG|NET|NETTO)', testo_intero)
+    if match_peso: dati["peso"] = int(match_peso.group(1))
+    
+    # Larghezza (Standard 1000, 1200, 1250, 1500 o simili)
+    match_largh = re.search(r'\b(1000|1200|1219|1225|1250|1500|600|360)\b', testo_intero)
+    if match_largh: dati["larghezza"] = int(match_largh.group(1))
+
+    # 5. COLORE (RAL O CODICI SPECIALI)
+    match_ral = re.search(r'(RAL\s*\d{4})', testo_intero)
+    if match_ral: dati["codice_colore"] = match_ral.group(1)
+    elif "9010" in testo_intero: dati["codice_colore"] = "RAL 9010" # Molto comune nei tuoi dati
+
+    return dati
 
     # --- UI ESTETICA ---
     st.markdown("""
@@ -242,3 +260,4 @@ if check_password():
     if st.sidebar.button("Esci (Logout)"):
         st.session_state["password_correct"] = False
         st.rerun()
+
