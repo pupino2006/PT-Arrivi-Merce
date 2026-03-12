@@ -1,7 +1,6 @@
 import streamlit as st
 import pandas as pd
 import re
-import os
 from datetime import datetime
 from io import BytesIO
 from google.cloud import vision
@@ -10,132 +9,134 @@ from PIL import Image
 # --- CONFIGURAZIONE PAGINA ---
 st.set_page_config(page_title="PT Carico", layout="centered")
 
-# --- CSS CUSTOM: GIOVANE, SMARTPHONE, TESTO NERO ---
+# --- CSS CUSTOM: LOOK SMARTPHONE, TESTO NERO, TASTI TESTO BIANCO ---
 st.markdown("""
     <style>
     /* Sfondo e Font */
     .stApp { background-color: #f4f7f9; font-family: -apple-system, sans-serif; }
     
-    /* Header con Logo */
-    .header-container {
-        background: white;
-        padding: 15px;
-        text-align: center;
-        border-bottom: 2px solid #1a73e8;
-        margin-bottom: 15px;
-        border-radius: 0 0 20px 20px;
-    }
+    /* Header */
+    .header-container { text-align: center; padding: 10px; }
     
-    /* Testo Nero e Labels */
-    h1, h2, h3, p, label, .stMarkdown { color: #000000 !important; font-weight: 600 !important; }
+    /* Testo Nero per Label e Markdown */
+    label, .stMarkdown p, h1, h2, h3 { color: #000000 !important; font-weight: 700 !important; }
     
-    /* Card Inserimento */
-    .stForm {
-        background: white !important;
-        border: none !important;
-        border-radius: 20px !important;
-        box-shadow: 0 8px 24px rgba(0,0,0,0.08) !important;
-        padding: 20px !important;
-    }
-
-    /* Input Fields */
+    /* Input Fields Neri */
     .stTextInput input, .stNumberInput input, .stSelectbox select {
         color: #000000 !important;
-        border: 1.5px solid #dfe1e5 !important;
+        border: 1.5px solid #1a73e8 !important;
         border-radius: 12px !important;
-        background: #ffffff !important;
-        height: 45px !important;
     }
 
-    /* Bottoni */
+    /* BOTTONI: SFONDO BLU, TESTO BIANCO CORRETTO */
     .stButton>button {
         width: 100%;
         border-radius: 12px !important;
         background-color: #1a73e8 !important;
-        color: white !important;
+        color: #FFFFFF !important; /* Testo Bianco */
         font-weight: 700 !important;
         padding: 12px !important;
         border: none !important;
-        text-transform: uppercase;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
     }
     
-    /* Scanner Expander */
-    .stExpander { border: none !important; background: #e8f0fe !important; border-radius: 15px !important; }
+    /* Hover bottoni */
+    .stButton>button:hover { color: #FFFFFF !important; background-color: #1557b0 !important; }
+
+    /* Fix per tasti piccoli affiancati */
+    div[data-testid="column"] .stButton>button {
+        padding: 8px !important;
+        font-size: 14px !important;
+    }
     </style>
     """, unsafe_allow_html=True)
 
 # --- LOGO ---
-col_l, col_r = st.columns([1, 1])
 try:
-    logo = Image.open("ptsimbolo.png")
-    st.image(logo, width=80)
+    st.image("ptsimbolo.png", width=70)
 except:
     st.markdown("### PT CARICO")
 
-# --- LOGICA OCR ---
+# --- FUNZIONI DI ANALISI ---
 def analizza_foto(image_bytes):
     try:
         client = vision.ImageAnnotatorClient()
         image = vision.Image(content=image_bytes)
         response = client.text_detection(image=image)
-        return response.text_annotations[0].description if response.text_annotations else ""
+        testo = response.text_annotations[0].description if response.text_annotations else ""
+        return testo
     except: return ""
 
-def estrai_codice(testo):
-    match = re.search(r'\b(S\d{7,15}|[0-9]{10,20}|[A-Z0-9]{15,})\b', testo)
-    return match.group(1) if match else ""
+def estrai_dati(testo):
+    """Estrae i dati dal testo OCR per popolare il form"""
+    dati = {
+        "barcode": "",
+        "fornitore": ""
+    }
+    if testo:
+        # Cerca barcode (S seguito da numeri o stringhe lunghe)
+        match = re.search(r'\b(S\d{7,15}|[0-9]{10,20}|[A-Z0-9]{15,})\b', testo)
+        if match: dati["barcode"] = match.group(1)
+        
+        # Cerca fornitore
+        testo_up = testo.upper()
+        if "LAMPRE" in testo_up: dati["fornitore"] = "Lampre"
+        elif "MARCEGAGLIA" in testo_up: dati["fornitore"] = "Marcegaglia"
+        elif "VARCOLOR" in testo_up: dati["fornitore"] = "Varcolor"
+    return dati
 
-# --- UI APP ---
-if 'dati_sessione' not in st.session_state:
-    st.session_state.dati_sessione = []
+# --- LOGICA SESSIONE ---
+if 'dati_caricati' not in st.session_state:
+    st.session_state.dati_caricati = {"barcode": "", "fornitore": ""}
+if 'archivio' not in st.session_state:
+    st.session_state.archivio = []
 
-tab_new, tab_list = st.tabs(["🆕 NUOVO", "📂 STORICO"])
+# --- UI ---
+tab_new, tab_list = st.tabs(["➕ NUOVO", "📂 STORICO"])
 
 with tab_new:
-    # Selezione Metodo di Input
-    with st.expander("📷 APRI FOTOCAMERA PER SCANNER"):
-        foto = st.camera_input("Inquadra l'etichetta")
-    
-    carica_file = st.file_uploader("🖼️ CARICA DA GALLERIA", type=['jpg','png','jpeg'])
-
-    testo_rilevato = ""
-    file_input = foto if foto else carica_file
-    
-    if file_input:
-        testo_rilevato = analizza_foto(file_input.getvalue())
-        st.toast("Etichetta letta!", icon="🔎")
+    # 1. Caricamento/Scanner
+    with st.expander("📷 SCANSIONA ETICHETTA INTERA"):
+        foto_full = st.camera_input("Inquadra per auto-compilare i campi")
+        if foto_full:
+            testo = analizza_foto(foto_full.getvalue())
+            st.session_state.dati_caricati = estrai_dati(testo)
+            st.success("Dati estratti con successo!")
 
     # --- FORM ---
     with st.form("carico_form", clear_on_submit=True):
-        st.markdown("### 📝 Dati Materiale")
+        st.markdown("### 📝 Scheda Tecnica")
         
-        # 1. Codice a barre
-        f_barcode = st.text_input("📦 CODICE A BARRE", value=estrai_codice(testo_rilevato))
-        
-        # 2. Fornitore e 3. Spessore
+        # Codice a barre con pulsante scanner affiancato
+        col_bar, col_btn = st.columns([3, 1])
+        f_barcode = col_bar.text_input("📦 CODICE A BARRE", value=st.session_state.dati_caricati["barcode"])
+        with col_btn:
+            st.write("##") # Allineamento
+            scansiona_singolo = st.form_submit_button("📷 SCAN")
+            # In Streamlit lo scanner singolo dentro il form funge da trigger per il refresh o l'uso della camera sopra
+
         c1, c2 = st.columns(2)
-        f_fornitore = c1.text_input("🏭 FORNITORE", value="Lampre" if "LAMPRE" in testo_rilevato.upper() else "")
+        f_fornitore = c1.text_input("🏭 FORNITORE", value=st.session_state.dati_caricati["fornitore"])
         f_spessore = c2.number_input("📏 SPESSORE", format="%.2f", step=0.01)
         
-        # 4. Arrivo e 5. Descrizione
-        f_arrivo = st.date_input("📅 DATA ARRIVO", datetime.now())
         f_descrizione = st.text_input("📄 DESCRIZIONE")
+        f_arrivo = st.date_input("📅 DATA ARRIVO", datetime.now())
         
-        # 6. Colore e 7. Peso
         c3, c4 = st.columns(2)
         f_colore = c3.text_input("🎨 CODICE COLORE")
         f_peso = c4.number_input("⚖️ PESO (KG)", step=1)
         
-        # 8. Mq e 9. Linea
         c5, c6 = st.columns(2)
         f_mq = c5.number_input("📐 METRI QUADRI", step=0.01)
         f_linea = c6.selectbox("🏗️ LINEA", ["1", "2"])
         
-        # 10. Terminato (Stato lasciato vuoto di default)
+        # Stato sempre vuoto all'inizio
         f_terminato = st.selectbox("🏁 STATO (TERMINATO)", ["", "SI", "NO"], index=0)
 
-        if st.form_submit_button("REGISTRA NEL SISTEMA"):
-            st.session_state.dati_sessione.append({
+        submit = st.form_submit_button("REGISTRA CARICO")
+        
+        if submit:
+            st.session_state.archivio.append({
                 "Codice a barre": f_barcode,
                 "Produttore/Fornitore": f_fornitore,
                 "Spessore dichiarato": f_spessore,
@@ -147,21 +148,17 @@ with tab_new:
                 "Terminato": f_terminato,
                 "Linea": f_linea
             })
-            st.success("Carico registrato!")
+            # Reset dei dati caricati dopo il salvataggio
+            st.session_state.dati_caricati = {"barcode": "", "fornitore": ""}
+            st.success("Dato salvato!")
 
 with tab_list:
-    if st.session_state.dati_sessione:
-        df = pd.DataFrame(st.session_state.dati_sessione)
-        st.write("### Riepilogo")
+    if st.session_state.archivio:
+        df = pd.DataFrame(st.session_state.archivio)
         st.dataframe(df)
         
-        # Download Excel
         buf = BytesIO()
         df.to_excel(buf, index=False)
-        st.download_button("📥 SCARICA EXCEL", buf.getvalue(), "carico_pt.xlsx")
-        
-        if st.button("🗑️ CANCELLA TUTTO"):
-            st.session_state.dati_sessione = []
-            st.rerun()
+        st.download_button("📥 SCARICA EXCEL (TESTO BIANCO)", buf.getvalue(), "carico.xlsx")
     else:
-        st.info("Nessun dato presente.")
+        st.info("Nessun dato in memoria.")
