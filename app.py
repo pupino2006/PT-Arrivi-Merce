@@ -66,23 +66,29 @@ if True: # Sostituire con if check_password():
     tab1, tab2 = st.tabs(["📝 NUOVO CARICO", "📦 STORICO"])
 
     with tab1:
-        # LOGICA SCANNER DINAMICO
-        if st.session_state.show_scanner:
-            st.markdown("### 📷 SCANNER ATTIVO")
-            foto = st.camera_input("Inquadra l'etichetta o il QR")
-            
-            if foto:
-                with st.spinner("Analisi in corso..."):
-                    testo = analizza_con_google(foto.getvalue())
-                    st.session_state.temp_scan = estrai_dati_completi(testo)
-                    # CHIUDI AUTOMATICAMENTE LA FOTOCAMERA
-                    st.session_state.show_scanner = False 
-                    st.success("Dati estratti! La fotocamera è stata chiusa.")
-                    st.rerun() # Forza il refresh per nascondere la camera
-            
-            if st.button("❌ ANNULLA SCAN"):
-                st.session_state.show_scanner = False
+# --- PARTE 2: FORM CON SCANNER RAPIDO PER IL CODICE ---
+    with st.form("form_carico"):
+        st.markdown("### Dati Materiale")
+        
+        # Logica Scanner Rapido (stile la tua app JS)
+        col_code, col_btn = st.columns([3, 1])
+        
+        with col_btn:
+            st.write("##")
+            if st.form_submit_button("📷 SCAN"):
+                st.session_state.show_quick_scan = True
+
+        # Se premuto SCAN, appare il lettore stile JS sopra il campo
+        barcode_scansionato = ""
+        if st.session_state.show_quick_scan:
+            barcode_scansionato = st_barcode_scanner()
+            if barcode_scansionato:
+                st.session_state.temp_data["barcode"] = barcode_scansionato
+                st.session_state.show_quick_scan = False
                 st.rerun()
+
+        f_barcode = col_code.text_input("📦 CODICE A BARRE / QR", 
+                                       value=st.session_state.temp_data.get("barcode", ""))
 
         # FORM DI CARICO
         with st.form("form_carico", clear_on_submit=True):
@@ -139,6 +145,7 @@ if True: # Sostituire con if check_password():
             if st.button("🗑️ CANCELLA TUTTO"):
                 st.session_state.archivio = []
                 st.rerun()
+
 
 
 
