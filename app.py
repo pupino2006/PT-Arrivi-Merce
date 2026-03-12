@@ -101,7 +101,7 @@ if not st.session_state.authenticated:
     st.markdown("<h1 style='text-align: center;'>🔐 ACCESSO RISERVATO</h1>", unsafe_allow_html=True)
     password = st.text_input("Inserisci la Password", type="password")
     if st.button("ACCEDI"):
-        if password == "PIETRO2024": # Cambia la password qui
+        if password == "pt2026": # Cambia la password qui
             st.session_state.authenticated = True
             st.rerun()
         else:
@@ -172,3 +172,4 @@ with tab2:
         with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
             df.to_excel(writer, index=False)
         st.download_button("📥 SCARICA EXCEL", output.getvalue(), "carico.xlsx")
+
