@@ -3,5 +3,4 @@ pandas
 google-cloud-vision
 Pillow
 xlsxwriter
-opencv-python-headless
-pyzbar
+streamlit-qrcode-scanner
