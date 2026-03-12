@@ -7,136 +7,129 @@ from google.cloud import vision
 from PIL import Image
 
 # --- CONFIGURAZIONE PAGINA ---
-st.set_page_config(page_title="PT Carico", layout="centered")
+st.set_page_config(page_title="PT Carico Merci", layout="centered")
 
-# --- CSS CUSTOM: LOOK SMARTPHONE, TESTO NERO, TASTI TESTO BIANCO ---
+# --- CSS ORIGINALE (LOOK PULITO, TESTO NERO, TASTI BIANCHI) ---
 st.markdown("""
     <style>
-    /* Sfondo e Font */
-    .stApp { background-color: #f4f7f9; font-family: -apple-system, sans-serif; }
+    /* Reset e Base */
+    .stApp { background: white; font-family: -apple-system, sans-serif; }
     
     /* Header */
-    .header-container { text-align: center; padding: 10px; }
-    
-    /* Testo Nero per Label e Markdown */
-    label, .stMarkdown p, h1, h2, h3 { color: #000000 !important; font-weight: 700 !important; }
-    
-    /* Input Fields Neri */
-    .stTextInput input, .stNumberInput input, .stSelectbox select {
-        color: #000000 !important;
-        border: 1.5px solid #1a73e8 !important;
-        border-radius: 12px !important;
+    .header-pt {
+        padding: 20px;
+        text-align: center;
+        border-bottom: 3px solid #004a99;
     }
 
-    /* BOTTONI: SFONDO BLU, TESTO BIANCO CORRETTO */
+    /* Testi Neri */
+    label, p, h3, .stMarkdown { color: #000000 !important; font-weight: bold !important; }
+    
+    /* Input */
+    .stTextInput input, .stNumberInput input, .stSelectbox select {
+        border: 1px solid #004a99 !important;
+        color: #000000 !important;
+    }
+
+    /* BOTTONI: SFONDO BLU, TESTO BIANCO */
     .stButton>button {
         width: 100%;
-        border-radius: 12px !important;
-        background-color: #1a73e8 !important;
-        color: #FFFFFF !important; /* Testo Bianco */
-        font-weight: 700 !important;
-        padding: 12px !important;
+        background-color: #004a99 !important;
+        color: #FFFFFF !important; /* Testo Bianco per contrasto */
+        font-weight: bold !important;
+        border-radius: 8px !important;
         border: none !important;
-        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        height: 50px;
     }
     
-    /* Hover bottoni */
-    .stButton>button:hover { color: #FFFFFF !important; background-color: #1557b0 !important; }
-
-    /* Fix per tasti piccoli affiancati */
+    /* Tasto Scan Piccolo */
     div[data-testid="column"] .stButton>button {
-        padding: 8px !important;
-        font-size: 14px !important;
+        height: 45px !important;
+        background-color: #1a73e8 !important;
     }
     </style>
     """, unsafe_allow_html=True)
 
-# --- LOGO ---
-try:
-    st.image("ptsimbolo.png", width=70)
-except:
-    st.markdown("### PT CARICO")
-
-# --- FUNZIONI DI ANALISI ---
-def analizza_foto(image_bytes):
+# --- FUNZIONI LOGICHE ---
+def analizza_etichetta(image_bytes):
     try:
         client = vision.ImageAnnotatorClient()
         image = vision.Image(content=image_bytes)
         response = client.text_detection(image=image)
         testo = response.text_annotations[0].description if response.text_annotations else ""
-        return testo
-    except: return ""
-
-def estrai_dati(testo):
-    """Estrae i dati dal testo OCR per popolare il form"""
-    dati = {
-        "barcode": "",
-        "fornitore": ""
-    }
-    if testo:
-        # Cerca barcode (S seguito da numeri o stringhe lunghe)
-        match = re.search(r'\b(S\d{7,15}|[0-9]{10,20}|[A-Z0-9]{15,})\b', testo)
-        if match: dati["barcode"] = match.group(1)
         
-        # Cerca fornitore
+        # Estrazione automatica
+        dati = {"barcode": "", "fornitore": ""}
+        barcode_match = re.search(r'\b(S\d{7,15}|[0-9]{10,20}|[A-Z0-9]{15,})\b', testo)
+        if barcode_match: dati["barcode"] = barcode_match.group(1)
+        
         testo_up = testo.upper()
         if "LAMPRE" in testo_up: dati["fornitore"] = "Lampre"
         elif "MARCEGAGLIA" in testo_up: dati["fornitore"] = "Marcegaglia"
         elif "VARCOLOR" in testo_up: dati["fornitore"] = "Varcolor"
-    return dati
+        
+        return dati
+    except: return {"barcode": "", "fornitore": ""}
 
-# --- LOGICA SESSIONE ---
-if 'dati_caricati' not in st.session_state:
-    st.session_state.dati_caricati = {"barcode": "", "fornitore": ""}
+# --- GESTIONE STATO ---
+if 'temp_data' not in st.session_state:
+    st.session_state.temp_data = {"barcode": "", "fornitore": ""}
 if 'archivio' not in st.session_state:
     st.session_state.archivio = []
 
-# --- UI ---
-tab_new, tab_list = st.tabs(["➕ NUOVO", "📂 STORICO"])
+# --- INTERFACCIA ---
+st.markdown('<div class="header-pt">', unsafe_allow_html=True)
+try:
+    st.image("ptsimbolo.png", width=80)
+except:
+    st.title("PT CARICO MERCI")
+st.markdown('</div>', unsafe_allow_html=True)
 
-with tab_new:
-    # 1. Caricamento/Scanner
-    with st.expander("📷 SCANSIONA ETICHETTA INTERA"):
-        foto_full = st.camera_input("Inquadra per auto-compilare i campi")
-        if foto_full:
-            testo = analizza_foto(foto_full.getvalue())
-            st.session_state.dati_caricati = estrai_dati(testo)
-            st.success("Dati estratti con successo!")
+tab1, tab2 = st.tabs(["📝 NUOVO CARICO", "📦 ARCHIVIO"])
 
-    # --- FORM ---
-    with st.form("carico_form", clear_on_submit=True):
-        st.markdown("### 📝 Scheda Tecnica")
+with tab1:
+    # 1. SCANNER (Ora integrato per funzionare subito)
+    st.markdown("### 📷 SCANSIONA")
+    foto = st.camera_input("Inquadra il QR o Barcode dell'etichetta")
+    
+    if foto:
+        risultati = analizza_etichetta(foto.getvalue())
+        st.session_state.temp_data = risultati
+        st.success(f"Dati rilevati: {risultati['barcode']}")
+
+    # 2. FORM DI INSERIMENTO
+    with st.form("main_form", clear_on_submit=True):
+        st.markdown("---")
         
-        # Codice a barre con pulsante scanner affiancato
-        col_bar, col_btn = st.columns([3, 1])
-        f_barcode = col_bar.text_input("📦 CODICE A BARRE", value=st.session_state.dati_caricati["barcode"])
-        with col_btn:
-            st.write("##") # Allineamento
-            scansiona_singolo = st.form_submit_button("📷 SCAN")
-            # In Streamlit lo scanner singolo dentro il form funge da trigger per il refresh o l'uso della camera sopra
+        # Codice a barre con pulsante "trigger"
+        col_a, col_b = st.columns([3, 1])
+        f_barcode = col_a.text_input("📦 CODICE A BARRE", value=st.session_state.temp_data["barcode"])
+        with col_b:
+            st.write("##")
+            st.form_submit_button("📷 SCAN")
 
+        f_fornitore = st.text_input("🏭 PRODUTTORE/FORNITORE", value=st.session_state.temp_data["fornitore"])
+        
         c1, c2 = st.columns(2)
-        f_fornitore = c1.text_input("🏭 FORNITORE", value=st.session_state.dati_caricati["fornitore"])
-        f_spessore = c2.number_input("📏 SPESSORE", format="%.2f", step=0.01)
+        f_spessore = c1.number_input("📏 SPESSORE DICHIARATO", format="%.2f", step=0.01)
+        f_arrivo = c2.date_input("📅 DATA ARRIVO", datetime.now())
         
-        f_descrizione = st.text_input("📄 DESCRIZIONE")
-        f_arrivo = st.date_input("📅 DATA ARRIVO", datetime.now())
+        f_descrizione = st.text_input("📝 DESCRIZIONE")
+        f_colore = st.text_input("🎨 CODICE COLORE")
         
         c3, c4 = st.columns(2)
-        f_colore = c3.text_input("🎨 CODICE COLORE")
-        f_peso = c4.number_input("⚖️ PESO (KG)", step=1)
+        f_peso = c3.number_input("⚖️ PESO (KG)", step=1)
+        f_mq = c4.number_input("📐 METRI QUADRI", step=0.01)
         
         c5, c6 = st.columns(2)
-        f_mq = c5.number_input("📐 METRI QUADRI", step=0.01)
-        f_linea = c6.selectbox("🏗️ LINEA", ["1", "2"])
-        
-        # Stato sempre vuoto all'inizio
-        f_terminato = st.selectbox("🏁 STATO (TERMINATO)", ["", "SI", "NO"], index=0)
+        f_linea = c5.selectbox("🏗️ LINEA", ["1", "2"])
+        f_terminato = c6.selectbox("🏁 TERMINATO", ["", "SI", "NO"], index=0)
 
-        submit = st.form_submit_button("REGISTRA CARICO")
+        # Bottone Salva
+        salva = st.form_submit_button("🚀 REGISTRA CARICO")
         
-        if submit:
-            st.session_state.archivio.append({
+        if salva:
+            nuovo_record = {
                 "Codice a barre": f_barcode,
                 "Produttore/Fornitore": f_fornitore,
                 "Spessore dichiarato": f_spessore,
@@ -147,18 +140,20 @@ with tab_new:
                 "Metri Quadri": f_mq,
                 "Terminato": f_terminato,
                 "Linea": f_linea
-            })
-            # Reset dei dati caricati dopo il salvataggio
-            st.session_state.dati_caricati = {"barcode": "", "fornitore": ""}
-            st.success("Dato salvato!")
+            }
+            st.session_state.archivio.append(nuovo_record)
+            st.session_state.temp_data = {"barcode": "", "fornitore": ""} # Pulisce per il prossimo
+            st.success("Carico salvato con successo!")
 
-with tab_list:
+with tab2:
     if st.session_state.archivio:
         df = pd.DataFrame(st.session_state.archivio)
-        st.dataframe(df)
+        st.dataframe(df, use_container_width=True)
         
-        buf = BytesIO()
-        df.to_excel(buf, index=False)
-        st.download_button("📥 SCARICA EXCEL (TESTO BIANCO)", buf.getvalue(), "carico.xlsx")
+        # Export Excel
+        output = BytesIO()
+        with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
+            df.to_excel(writer, index=False)
+        st.download_button("📥 SCARICA EXCEL", output.getvalue(), "carico_merci.xlsx")
     else:
-        st.info("Nessun dato in memoria.")
+        st.info("Nessun dato registrato.")
