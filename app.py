@@ -54,9 +54,9 @@ def analizza_con_google(image_bytes):
         return ""
 
 def estrai_dati_chirurgica(testo_intero):
-    testo_intero = testo_intero.upper().replace('§', 'S').replace('|', 'I')
+    # Pulizia e normalizzazione del testo
+    testo_intero = testo_intero.upper().replace('§', 'S').replace('|', 'I').replace('\n', ' ')
     
-    # Inizializzazione con i nomi colonne esatti del tuo Excel
     dati = {
         "Codice a barre": "Non trovato",
         "Produttore/Fornitore": "Sconosciuto",
@@ -70,7 +70,7 @@ def estrai_dati_chirurgica(testo_intero):
         "Linea": "1"
     }
 
-    # Identificazione Fornitore (basata sui tuoi esempi)
+    # 1. IDENTIFICAZIONE FORNITORE
     fornitori_map = {
         "LAMPRE": "Lampre", "MARCEGAGLIA": "marcegaglia", "VARCOLOR": "varcolor",
         "ARCELOR": "arcelormittal", "SANDRINI": "Sandrini Metalli", 
@@ -82,27 +82,48 @@ def estrai_dati_chirurgica(testo_intero):
             dati["Produttore/Fornitore"] = nome
             break
 
-    # Estrazione Codice a Barre (gestisce Lampre 'S' e codici lunghi Fibrosan)
-    if "LAMPRE" in testo_intero:
-        match = re.search(r'S\s*(\d{9,10})', testo_intero)
-        if match: dati["Codice a barre"] = "S" + match.group(1)
+    # 2. CODICE A BARRE (LOGICA POTENZIATA)
+    # Cerca prima il formato specifico Lampre (S + 10 cifre) [cite: 1]
+    match_lampre = re.search(r'S\s*(\d{10})', testo_intero)
+    if match_lampre:
+        dati["Codice a barre"] = "S" + match_lampre.group(1)
     else:
-        # Cerca sequenze alfanumeriche lunghe (fino a 32 per Fibrosan)
-        match = re.search(r'\b([A-Z0-9/-]{8,32})\b', testo_intero)
-        if match: dati["Codice a barre"] = match.group(1)
+        # Cerca sequenze lunghe tipiche di Fibrosan o Arcelor 
+        match_generic = re.search(r'\b([A-Z0-9/-]{9,32})\b', testo_intero)
+        if match_generic:
+            dati["Codice a barre"] = match_generic.group(1)
 
-    # Spessore (Gestisce 0.45 dei metalli e 1.8 della VTR)
-    match_sp = re.search(r'([0-2][.,]\d{1,2})', testo_intero)
-    if match_sp: dati["Spessore dichiarato"] = float(match_sp.group(1).replace(',', '.'))
+    # 3. SPESSORE (CERCA IL NUMERO CON VIRGOLA O PUNTO)
+    # Cerchiamo numeri come 0.45, 0,50, 1.8 
+    match_sp = re.search(r'\b([0-1][.,]\d{2})\b|\b(1[.,]\d)\b', testo_intero)
+    if match_sp:
+        val = match_sp.group(0).replace(',', '.')
+        dati["Spessore dichiarato"] = float(val)
 
-    # Peso
-    match_peso = re.search(r'(\d{3,5})\s*(?:KG|NET|NETTO)', testo_intero)
-    if match_peso: dati["Peso"] = int(match_peso.group(1))
+    # 4. PESO (CERCA NUMERI VICINO A KG O DOPO SPAZI)
+    # Spesso nelle Lampre il peso è un numero isolato di 4 cifre sopra i 1000kg
+    match_peso = re.search(r'(\d{4,5})\s*KG|NET', testo_intero)
+    if match_peso:
+        dati["Peso"] = int(match_peso.group(1))
+    else:
+        # Tentativo estremo: cerca un numero tra 500 e 5000 che non sia lo spessore
+        numeri = re.findall(r'\b(\d{4})\b', testo_intero)
+        for n in numeri:
+            if 500 < int(n) < 5000:
+                dati["Peso"] = int(n)
+                break
 
-    # Colore (Cerca RAL)
-    match_ral = re.search(r'(RAL\s*\d{4})', testo_intero)
-    if match_ral: dati["Codice Colore"] = match_ral.group(1)
+    # 5. CODICE COLORE (RAL)
+    match_ral = re.search(r'RAL\s*(\d{4})', testo_intero)
+    if match_ral:
+        dati["Codice Colore"] = "RAL " + match_ral.group(1)
+    elif "9010" in testo_intero:
+        dati["Codice Colore"] = "RAL 9010"
 
+    # 6. LINEA AUTOMATICA
+    if "VETRORESINA" in dati["Produttore/Fornitore"].upper() or "FIBROSAN" in dati["Produttore/Fornitore"].upper():
+        dati["Linea"] = "2" # Come da tuoi esempi 
+    
     return dati
 
 # --- 4. AVVIO APPLICAZIONE ---
@@ -202,3 +223,4 @@ if check_password():
     if st.sidebar.button("Logout"):
         st.session_state["password_correct"] = False
         st.rerun()
+
