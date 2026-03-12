@@ -3,4 +3,4 @@ pandas
 google-cloud-vision
 Pillow
 xlsxwriter
-streamlit-camera-qrcode-scanner
+streamlit-barcode-reader
