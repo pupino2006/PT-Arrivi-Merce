@@ -5,7 +5,7 @@ import os
 from datetime import datetime
 from io import BytesIO
 from google.cloud import vision
-from streamlit_camera_qrcode_scanner import qrcode_scanner
+from streamlit_barcode_reader import barcode_reader
 
 # 1. Configurazione della pagina
 st.set_page_config(page_title="SB App Arrivi", layout="centered", page_icon="ptsimbolo.png")
@@ -68,15 +68,20 @@ with tab1:
 
     # 2. Scanner Rapido (Stile JS) - Appare solo se attivato
     if st.session_state.show_quick_scan:
-        st.markdown("### 📷 Inquadra il Codice")
-        codice_letto = qrcode_scanner(key='scanner_rapido')
-        if codice_letto:
-            st.session_state.temp_scan["barcode"] = codice_letto
-            st.session_state.show_quick_scan = False
-            st.rerun()
-        if st.button("❌ CHIUDI SCANNER"):
-            st.session_state.show_quick_scan = False
-            st.rerun()
+            st.markdown("### 📷 Inquadra il Codice")
+            
+            # Questa libreria apre la camera e legge il codice
+            # 'barcode' conterrà il valore letto
+            barcode_risultato = barcode_reader(key='lettore_codici')
+            
+            if barcode_risultato:
+                st.session_state.temp_scan["barcode"] = barcode_risultato
+                st.session_state.show_quick_scan = False
+                st.rerun()
+                
+            if st.button("❌ CHIUDI SCANNER"):
+                st.session_state.show_quick_scan = False
+                st.rerun()
 
     # 3. Form di Carico
     with st.form("form_carico_unico", clear_on_submit=True):
@@ -131,4 +136,5 @@ with tab2:
         if st.button("🗑️ CANCELLA TUTTO"):
             st.session_state.archivio = []
             st.rerun()
+
 
