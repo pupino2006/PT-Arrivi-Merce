@@ -8,160 +8,169 @@ from io import BytesIO
 from google.cloud import vision
 from PIL import Image
 
-# --- FILE PER LA PERSISTENZA PASSWORD ---
-PASSWORD_FILE = ".password_hash"
+# --- CONFIGURAZIONE PAGINA ---
+st.set_page_config(page_title="SB App Arrivi", layout="centered", page_icon="ptsimbolo.png")
 
-# --- 1. CONFIGURAZIONE PAGINA ---
-st.set_page_config(
-    page_title="SB App Arrivi", 
-    layout="centered", 
-    page_icon="ptsimbolo.png"
-)
+# --- CSS: LOOK SMARTPHONE, TESTO NERO, TASTI BLU/BIANCO ---
+st.markdown("""
+    <style>
+    .stApp { background: white; font-family: -apple-system, sans-serif; }
+    label, p, h3, .stMarkdown { color: #000000 !important; font-weight: bold !important; }
+    .stTextInput input, .stNumberInput input, .stSelectbox select {
+        border: 1px solid #004a99 !important;
+        color: #000000 !important;
+    }
+    /* BOTTONI: SFONDO BLU, TESTO BIANCO */
+    .stButton>button {
+        width: 100%;
+        background-color: #004a99 !important;
+        color: #FFFFFF !important;
+        font-weight: bold !important;
+        border-radius: 8px !important;
+        border: none !important;
+        height: 50px;
+    }
+    div[data-testid="column"] .stButton>button { height: 45px !important; background-color: #1a73e8 !important; }
+    </style>
+    """, unsafe_allow_html=True)
 
-# --- 2. FUNZIONI DI SUPPORTO ---
+# --- FUNZIONI DI SUPPORTO ---
 def analizza_con_google(image_bytes):
     try:
         client = vision.ImageAnnotatorClient()
         image = vision.Image(content=image_bytes)
         response = client.text_detection(image=image)
-        # Restituiamo il testo completo trovato
         return response.text_annotations[0].description if response.text_annotations else ""
     except Exception as e:
-        st.error(f"Errore Google Vision: {e}")
+        st.error(f"Errore Vision: {e}")
         return ""
 
-def estrai_dati_chirurgica(testo_intero):
-    testo_intero = testo_intero.upper()
-    testo_intero = testo_intero.replace('§', 'S').replace('|', 'I')
-    
+def estrai_dati_completi(testo):
+    testo_u = testo.upper()
     dati = {
-        "barcode": "Non trovato", "fornitore": "Sconosciuto", 
-        "spessore": 0.0, "peso": 0, "larghezza": 0, "lunghezza": 0.0,
-        "data_etichetta": datetime.now().strftime("%d/%m/%Y"),
-        "codice_colore": "", "descrizione": ""
-    }
-
-    # Mappatura Fornitori
-    fornitori_map = {
-        "MARCEGAGLIA": "MARCEGAGLIA", "LAMPRE": "LAMPRE", "ARCELOR": "ARCELORMITTAL",
-        "NOVELIS": "NOVELIS", "VARCOLOR": "VARCOLOR", "METALCOAT": "METALCOAT",
-        "SANDRINI": "SANDRINI METALLI", "VETRORESINA": "VETRORESINA SPA",
-        "FIBROSAN": "FIBROSAN", "RIVIERASCA": "RIVIERASCA"
+        "barcode": "", "fornitore": "", "spessore": 0.0, "peso": 0, "mq": 0.0,
+        "colore": "", "descrizione": "", "linea": "1"
     }
     
-    for chiave, nome in fornitori_map.items():
-        if chiave in testo_intero:
-            dati["fornitore"] = nome
-            break
-
-    # Barcode
-    if dati["fornitore"] == "LAMPRE":
-        match = re.search(r'S\s*(\d{9,10})', testo_intero)
-        if match: dati["barcode"] = "S" + match.group(1)
-    else:
-        match = re.search(r'\b(\d{9,12})\b', testo_intero)
-        if match: dati["barcode"] = match.group(1)
-
-    # Spessore
-    if any(x in dati["fornitore"] for x in ["VETRORESINA", "FIBROSAN", "RIVIERASCA"]):
-        match_sp = re.search(r'(\d[.,]\d)', testo_intero)
-        if match_sp: dati["spessore"] = float(match_sp.group(1).replace(',', '.'))
-    else:
-        match_sp = re.search(r'(0[.,]\d{2,3})', testo_intero)
-        if match_sp: dati["spessore"] = float(match_sp.group(1).replace(',', '.'))
-
-    # Peso e Larghezza
-    match_peso = re.search(r'(\d{3,5})\s*(?:KG|NET|NETTO)', testo_intero)
-    if match_peso: dati["peso"] = int(match_peso.group(1))
+    # Logic Barcode/QR
+    match_bar = re.search(r'\b(S\d{7,15}|[0-9]{10,20}|[A-Z0-9]{15,})\b', testo_u)
+    if match_bar: dati["barcode"] = match_bar.group(1)
     
-    match_largh = re.search(r'\b(1000|1200|1219|1225|1250|1500|600|360)\b', testo_intero)
-    if match_largh: dati["larghezza"] = int(match_largh.group(1))
+    # Logic Fornitore
+    mappa = {"LAMPRE": "Lampre", "MARCEGAGLIA": "Marcegaglia", "VARCOLOR": "Varcolor", "METALCOAT": "Metalcoat"}
+    for k, v in mappa.items():
+        if k in testo_u: dati["fornitore"] = v
+        
+    # Logic Spessore (es: 0.50 o 0,50)
+    match_sp = re.search(r'(0[.,]\d{2})', testo_u)
+    if match_sp: dati["spessore"] = float(match_sp.group(1).replace(',', '.'))
 
-    # Colore
-    if "9010" in testo_intero: dati["codice_colore"] = "RAL 9010"
-    
     return dati
 
+# --- LOGICA DI ACCESSO ---
+PASSWORD_FILE = ".password_hash"
 def check_password():
-    if st.session_state.get("password_correct", False):
-        return True
-
+    if st.session_state.get("password_correct", False): return True
     if not os.path.exists(PASSWORD_FILE):
-        st.title("🛡️ Configurazione Iniziale")
-        new_pass = st.text_input("Crea Password Master", type="password")
-        conf_pass = st.text_input("Conferma Password", type="password")
+        st.title("🛡️ Crea Password Master")
+        new_p = st.text_input("Password", type="password")
         if st.button("Salva"):
-            if new_pass == conf_pass and len(new_pass) > 3:
-                with open(PASSWORD_FILE, "w") as f: f.write(new_pass)
-                st.rerun()
-        return False
-
-    st.title("🔒 Accesso Riservato")
-    input_pass = st.text_input("Password:", type="password")
-    if st.button("Sblocca"):
-        with open(PASSWORD_FILE, "r") as f: saved_pass = f.read().strip()
-        if input_pass == saved_pass:
-            st.session_state["password_correct"] = True
+            with open(PASSWORD_FILE, "w") as f: f.write(new_p)
             st.rerun()
-        else:
-            st.error("Password errata.")
+        return False
+    st.title("🔒 Accesso Riservato")
+    input_p = st.text_input("Password", type="password")
+    if st.button("Sblocca"):
+        with open(PASSWORD_FILE, "r") as f: 
+            if input_p == f.read().strip():
+                st.session_state["password_correct"] = True
+                st.rerun()
     return False
 
-# --- 3. LOGICA PRINCIPALE ---
+# --- APP PRINCIPALE ---
 if check_password():
-    # Setup Google Credentials
     if "google_credentials" in st.secrets:
-        creds_dict = dict(st.secrets["google_credentials"])
-        if not os.path.exists("temp_key.json"):
-            with open("temp_key.json", "w") as f:
-                json.dump(creds_dict, f)
+        creds = dict(st.secrets["google_credentials"])
+        with open("temp_key.json", "w") as f: json.dump(creds, f)
         os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "temp_key.json"
 
-    st.title("🏗️ SB Supporti - Carico")
-    
-    if 'session_data' not in st.session_state:
-        st.session_state.session_data = []
+    # Logo
+    try: st.image("ptsimbolo.png", width=80)
+    except: st.title("SB CARICO")
 
-    input_mode = st.radio("Metodo:", ["Scatta Foto", "Galleria"], horizontal=True)
+    if 'archivio' not in st.session_state: st.session_state.archivio = []
+    if 'temp_scan' not in st.session_state: st.session_state.temp_scan = {}
 
-    foto_bytes = None
-    if input_mode == "Scatta Foto":
-        camera_img = st.camera_input("Inquadra")
-        if camera_img: foto_bytes = camera_img.getvalue()
-    else:
-        uploaded_file = st.file_uploader("Carica", type=['jpg', 'png'])
-        if uploaded_file: foto_bytes = uploaded_file.getvalue()
+    tab1, tab2 = st.tabs(["📝 NUOVO CARICO", "📦 STORICO"])
 
-    if foto_bytes:
-        with st.spinner('Analisi in corso...'):
-            testo_ocr = analizza_con_google(foto_bytes)
-            if testo_ocr:
-                info = estrai_dati_chirurgica(testo_ocr)
-                linea_calc = "1" if info["larghezza"] in [1200, 1225, 1250] else "2"
-                
-                with st.form("conferma"):
-                    f_bar = st.text_input("Codice", info["barcode"])
-                    f_forn = st.text_input("Fornitore", info["fornitore"])
-                    f_peso = st.number_input("Peso", value=info["peso"])
-                    f_spess = st.number_input("Spessore", value=info["spessore"], format="%.2f")
-                    f_linea = st.selectbox("Linea", ["1", "2"], index=0 if linea_calc=="1" else 1)
-                    
-                    if st.form_submit_button("AGGIUNGI"):
-                        st.session_state.session_data.append({
-                            "Codice": f_bar, "Fornitore": f_forn, "Peso": f_peso, "Spessore": f_spess, "Linea": f_linea
-                        })
-                        st.success("Aggiunto!")
+    with tab1:
+        # Zona Scanner
+        with st.expander("📷 SCANSIONA ETICHETTA / QR"):
+            foto = st.camera_input("Inquadra l'etichetta o il QR")
+            if foto:
+                testo = analizza_con_google(foto.getvalue())
+                st.session_state.temp_scan = estrai_dati_completi(testo)
+                st.success("Dati rilevati!")
 
-    if st.session_state.session_data:
-        df = pd.DataFrame(st.session_state.session_data)
-        st.dataframe(df)
-        
-        # Download Excel
-        output = BytesIO()
-        with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
-            df.to_excel(writer, index=False)
-        st.download_button("📥 SCARICA EXCEL", output.getvalue(), "carico.xlsx")
+        # FORM CON I 10 CAMPI
+        with st.form("form_carico", clear_on_submit=True):
+            st.markdown("### 📝 Dati Materiale")
+            
+            # 1. Codice a barre + Bottone Scan (trigger visivo)
+            col_a, col_b = st.columns([3, 1])
+            f_barcode = col_a.text_input("📦 CODICE A BARRE", value=st.session_state.temp_scan.get("barcode", ""))
+            with col_b:
+                st.write("##")
+                st.form_submit_button("📷 SCAN")
 
-    if st.sidebar.button("Logout"):
-        st.session_state["password_correct"] = False
-        st.rerun()
+            # 2. Fornitore e 3. Spessore
+            c1, c2 = st.columns(2)
+            f_fornitore = c1.text_input("🏭 PRODUTTORE/FORNITORE", value=st.session_state.temp_scan.get("fornitore", ""))
+            f_spessore = c2.number_input("📏 SPESSORE DICHIARATO", value=st.session_state.temp_scan.get("spessore", 0.0), format="%.2f", step=0.01)
+
+            # 4. Arrivo e 5. Descrizione
+            f_arrivo = st.date_input("📅 DATA ARRIVO", datetime.now())
+            f_descrizione = st.text_input("📝 DESCRIZIONE", value=st.session_state.temp_scan.get("descrizione", ""))
+
+            # 6. Colore e 7. Peso
+            c3, c4 = st.columns(2)
+            f_colore = c3.text_input("🎨 CODICE COLORE", value=st.session_state.temp_scan.get("colore", ""))
+            f_peso = c4.number_input("⚖️ PESO (KG)", value=st.session_state.temp_scan.get("peso", 0), step=1)
+
+            # 8. Mq e 9. Linea
+            c5, c6 = st.columns(2)
+            f_mq = c5.number_input("📐 METRI QUADRI", value=st.session_state.temp_scan.get("mq", 0.0), step=0.01)
+            f_linea = c6.selectbox("🏗️ LINEA", ["1", "2"], index=0 if st.session_state.temp_scan.get("linea")=="1" else 1)
+
+            # 10. Terminato (sempre vuoto all'inizio)
+            f_terminato = st.selectbox("🏁 TERMINATO", ["", "SI", "NO"], index=0)
+
+            if st.form_submit_button("🚀 REGISTRA CARICO"):
+                st.session_state.archivio.append({
+                    "Codice a barre": f_barcode,
+                    "Produttore/Fornitore": f_fornitore,
+                    "Spessore dichiarato": f_spessore,
+                    "Arrivo": f_arrivo.strftime("%Y-%m-%d"),
+                    "Descrizione": f_descrizione,
+                    "Codice Colore": f_colore,
+                    "Peso": f_peso,
+                    "Metri Quadri": f_mq,
+                    "Terminato": f_terminato,
+                    "Linea": f_linea
+                })
+                st.session_state.temp_scan = {} # Reset
+                st.success("Carico registrato!")
+
+    with tab2:
+        if st.session_state.archivio:
+            df = pd.DataFrame(st.session_state.archivio)
+            st.dataframe(df, use_container_width=True)
+            
+            output = BytesIO()
+            with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
+                df.to_excel(writer, index=False)
+            st.download_button("📥 SCARICA EXCEL", output.getvalue(), "carico_merci.xlsx")
+            
+            if st.button("🗑️ CANCELLA TUTTO"):
+                st.session_state.archivio = []
+                st.rerun()
