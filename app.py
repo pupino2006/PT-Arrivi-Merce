@@ -40,7 +40,7 @@ def check_password():
             st.error("Password errata.")
     return False
 
-# --- 3. FUNZIONI CORE (ESTERNE PER PULIZIA) ---
+# --- 3. FUNZIONI CORE ---
 def analizza_con_google(image_bytes):
     try:
         client = vision.ImageAnnotatorClient()
@@ -55,61 +55,70 @@ def analizza_con_google(image_bytes):
 
 def estrai_dati_chirurgica(testo_intero):
     testo_intero = testo_intero.upper().replace('§', 'S').replace('|', 'I')
+    
+    # Inizializzazione con i nomi colonne esatti del tuo Excel
     dati = {
-        "barcode": "Non trovato", "fornitore": "Sconosciuto", 
-        "spessore": 0.0, "peso": 0, "larghezza": 0, "lunghezza": 0.0,
-        "data_etichetta": datetime.now().strftime("%d/%m/%Y"),
-        "codice_colore": "", "descrizione": ""
+        "Codice a barre": "Non trovato",
+        "Produttore/Fornitore": "Sconosciuto",
+        "Spessore dichiarato": 0.0,
+        "Arrivo": datetime.now().strftime("%Y-%m-%d"),
+        "Descrizione": "",
+        "Codice Colore": "",
+        "Peso": 0,
+        "Metri Quadri": 0.0,
+        "Terminato": "",
+        "Linea": "1"
     }
 
-    # Fornitori
-    fornitori = {
-        "MARCEGAGLIA": "MARCEGAGLIA", "LAMPRE": "LAMPRE", "ARCELOR": "ARCELORMITTAL",
-        "NOVELIS": "NOVELIS", "VARCOLOR": "VARCOLOR", "METALCOAT": "METALCOAT",
-        "SANDRINI": "SANDRINI METALLI", "VETRORESINA": "VETRORESINA SPA",
-        "FIBROSAN": "FIBROSAN", "RIVIERASCA": "RIVIERASCA"
+    # Identificazione Fornitore (basata sui tuoi esempi)
+    fornitori_map = {
+        "LAMPRE": "Lampre", "MARCEGAGLIA": "marcegaglia", "VARCOLOR": "varcolor",
+        "ARCELOR": "arcelormittal", "SANDRINI": "Sandrini Metalli", 
+        "NOVELIS": "Novelis Ita", "METALCOAT": "metalcoat", 
+        "VETRORESINA": "Vetroresina Spa", "FIBROSAN": "Fibrosan", "RIVIERASCA": "Rivierasca"
     }
-    for k, v in fornitori.items():
-        if k in testo_intero:
-            dati["fornitore"] = v
+    for chiave, nome in fornitori_map.items():
+        if chiave in testo_intero:
+            dati["Produttore/Fornitore"] = nome
             break
 
-    # Barcode/ID (Più flessibile per codici con / o -)
-    match_bar = re.search(r'\b([A-Z0-9/-]{8,25})\b', testo_intero)
-    if match_bar: dati["barcode"] = match_bar.group(1)
+    # Estrazione Codice a Barre (gestisce Lampre 'S' e codici lunghi Fibrosan)
+    if "LAMPRE" in testo_intero:
+        match = re.search(r'S\s*(\d{9,10})', testo_intero)
+        if match: dati["Codice a barre"] = "S" + match.group(1)
+    else:
+        # Cerca sequenze alfanumeriche lunghe (fino a 32 per Fibrosan)
+        match = re.search(r'\b([A-Z0-9/-]{8,32})\b', testo_intero)
+        if match: dati["Codice a barre"] = match.group(1)
 
-    # Spessore (Gestisce 0.45 e anche 1.8 della vetroresina)
+    # Spessore (Gestisce 0.45 dei metalli e 1.8 della VTR)
     match_sp = re.search(r'([0-2][.,]\d{1,2})', testo_intero)
-    if match_sp: dati["spessore"] = float(match_sp.group(1).replace(',', '.'))
+    if match_sp: dati["Spessore dichiarato"] = float(match_sp.group(1).replace(',', '.'))
 
     # Peso
     match_peso = re.search(r'(\d{3,5})\s*(?:KG|NET|NETTO)', testo_intero)
-    if match_peso: dati["peso"] = int(match_peso.group(1))
+    if match_peso: dati["Peso"] = int(match_peso.group(1))
 
-    # Larghezza
-    match_largh = re.search(r'\b(1000|1200|1219|1225|1250|1500|600|360)\b', testo_intero)
-    if match_largh: dati["larghezza"] = int(match_largh.group(1))
+    # Colore (Cerca RAL)
+    match_ral = re.search(r'(RAL\s*\d{4})', testo_intero)
+    if match_ral: dati["Codice Colore"] = match_ral.group(1)
 
     return dati
 
 # --- 4. AVVIO APPLICAZIONE ---
 if check_password():
     
-    # Configurazione Google Cloud
     if "google_credentials" in st.secrets:
         creds = dict(st.secrets["google_credentials"])
         if not os.path.exists("temp_key.json"):
             with open("temp_key.json", "w") as f: json.dump(creds, f)
         os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "temp_key.json"
 
-    # UI Header
     st.title("🏗️ SB Supporti - Arrivi")
-    st.caption(f"Utente Autenticato - {datetime.now().strftime('%d/%m/%Y')}")
 
     if 'session_data' not in st.session_state:
         st.session_state.session_data = []
 
-    # Sezione Input
     input_mode = st.radio("Sorgente immagine:", ["📷 Scatta Foto", "📁 Galleria"], horizontal=True)
     foto_bytes = None
 
@@ -120,64 +129,76 @@ if check_password():
         uploaded_file = st.file_uploader("Carica immagine", type=['jpg', 'jpeg', 'png'])
         if uploaded_file: foto_bytes = uploaded_file.getvalue()
 
-    # Processamento
     if foto_bytes:
-        with st.spinner('L\'AI sta analizzando...'):
+        with st.spinner('Analisi AI in corso...'):
             testo_raw = analizza_con_google(foto_bytes)
             if testo_raw:
                 info = estrai_dati_chirurgica(testo_raw)
                 
-                # Form di conferma
                 with st.form("validazione"):
-                    st.subheader("📝 Verifica Dati Estratti")
+                    st.subheader("📝 Verifica Dati")
                     col1, col2 = st.columns(2)
-                    f_bar = col1.text_input("Codice / ID Collo", info["barcode"])
-                    f_forn = col2.text_input("Fornitore", info["fornitore"])
+                    f_bar = col1.text_input("Codice a barre", info["Codice a barre"])
+                    f_forn = col2.text_input("Produttore/Fornitore", info["Produttore/Fornitore"])
                     
                     c1, c2, c3 = st.columns(3)
-                    f_spess = c1.number_input("Spessore", value=info["spessore"], format="%.2f")
-                    f_peso = c2.number_input("Peso (kg)", value=info["peso"])
-                    f_largh = c3.selectbox("Larghezza", [1250, 1220, 1000, 600, 360, 0], index=0)
+                    f_spess = c1.number_input("Spessore dichiarato", value=info["Spessore dichiarato"], format="%.2f")
+                    f_peso = c2.number_input("Peso", value=info["Peso"])
+                    f_mq = c3.number_input("Metri Quadri", value=0.0, format="%.2f")
                     
-                    f_colore = st.text_input("Codice Colore", info["codice_colore"])
-                    f_linea = st.selectbox("Linea Destinazione", ["1", "2"])
+                    f_data = st.text_input("Arrivo (Data)", info["Arrivo"])
+                    f_desc = st.text_input("Descrizione", info["Descrizione"])
+                    f_color = st.text_input("Codice Colore", info["Codice Colore"])
+                    f_linea = st.selectbox("Linea", ["1", "2"], index=0 if "VETRORESINA" not in info["Produttore/Fornitore"].upper() else 1)
 
-                    if st.form_submit_button("✅ AGGIUNGI AL CARICO"):
+                    if st.form_submit_button("✅ AGGIUNGI RIGA AL CARICO"):
                         st.session_state.session_data.append({
-                            "Codice": f_bar, "Fornitore": f_forn, "Spessore": f_spess,
-                            "Peso": f_peso, "Larghezza": f_largh, "Colore": f_colore,
-                            "Linea": f_linea, "Data": datetime.now().strftime("%d/%m/%Y")
+                            "Codice a barre": f_bar,
+                            "Produttore/Fornitore": f_forn,
+                            "Spessore dichiarato": f_spess,
+                            "Arrivo": f_data,
+                            "Descrizione": f_desc,
+                            "Codice Colore": f_color,
+                            "Peso": f_peso,
+                            "Metri Quadri": f_mq,
+                            "Terminato": "", # Sempre vuoto come richiesto
+                            "Linea": f_linea
                         })
-                        st.success("Riga aggiunta correttamente!")
+                        st.success("Riga aggiunta!")
                         st.balloons()
 
-    # Tabella e Download
     if st.session_state.session_data:
         st.divider()
         df = pd.DataFrame(st.session_state.session_data)
-        st.subheader("📋 Riepilogo Sessione")
+        
+        # Ordiniamo le colonne esattamente come il tuo Excel
+        ordine_colonne = [
+            "Codice a barre", "Produttore/Fornitore", "Spessore dichiarato", 
+            "Arrivo", "Descrizione", "Codice Colore", "Peso", 
+            "Metri Quadri", "Terminato", "Linea"
+        ]
+        df = df[ordine_colonne]
+        
+        st.subheader("📋 Riepilogo Carico")
         st.dataframe(df, use_container_width=True)
 
-        col_dl, col_del = st.columns(2)
-        
-        # Excel Export
+        # Export Excel
         output = BytesIO()
         with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
-            df.to_excel(writer, index=False, sheet_name='Arrivi')
+            df.to_excel(writer, index=False, sheet_name='Carico SB')
         
-        col_dl.download_button(
-            label="📥 SCARICA EXCEL",
+        st.download_button(
+            label="📥 SCARICA EXCEL FINALE",
             data=output.getvalue(),
-            file_name=f"Carico_SB_{datetime.now().strftime('%H%M')}.xlsx",
+            file_name=f"Carico_SB_{datetime.now().strftime('%Y%m%d_%H%M')}.xlsx",
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
         )
 
-        if col_del.button("🗑️ Svuota Tutto"):
+        if st.button("🗑️ Svuota sessione"):
             st.session_state.session_data = []
             st.rerun()
 
-    # Sidebar Logout
     st.sidebar.markdown("---")
-    if st.sidebar.button("Esci"):
+    if st.sidebar.button("Logout"):
         st.session_state["password_correct"] = False
         st.rerun()
