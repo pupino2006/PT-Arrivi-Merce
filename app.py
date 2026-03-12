@@ -1,159 +1,167 @@
 import streamlit as st
 import pandas as pd
 import re
+import os
+import json
 from datetime import datetime
 from io import BytesIO
 from google.cloud import vision
 from PIL import Image
 
-# --- CONFIGURAZIONE PAGINA ---
-st.set_page_config(page_title="PT Carico Merci", layout="centered")
+# --- FILE PER LA PERSISTENZA PASSWORD ---
+PASSWORD_FILE = ".password_hash"
 
-# --- CSS ORIGINALE (LOOK PULITO, TESTO NERO, TASTI BIANCHI) ---
-st.markdown("""
-    <style>
-    /* Reset e Base */
-    .stApp { background: white; font-family: -apple-system, sans-serif; }
-    
-    /* Header */
-    .header-pt {
-        padding: 20px;
-        text-align: center;
-        border-bottom: 3px solid #004a99;
-    }
+# --- 1. CONFIGURAZIONE PAGINA ---
+st.set_page_config(
+    page_title="SB App Arrivi", 
+    layout="centered", 
+    page_icon="ptsimbolo.png"
+)
 
-    /* Testi Neri */
-    label, p, h3, .stMarkdown { color: #000000 !important; font-weight: bold !important; }
-    
-    /* Input */
-    .stTextInput input, .stNumberInput input, .stSelectbox select {
-        border: 1px solid #004a99 !important;
-        color: #000000 !important;
-    }
-
-    /* BOTTONI: SFONDO BLU, TESTO BIANCO */
-    .stButton>button {
-        width: 100%;
-        background-color: #004a99 !important;
-        color: #FFFFFF !important; /* Testo Bianco per contrasto */
-        font-weight: bold !important;
-        border-radius: 8px !important;
-        border: none !important;
-        height: 50px;
-    }
-    
-    /* Tasto Scan Piccolo */
-    div[data-testid="column"] .stButton>button {
-        height: 45px !important;
-        background-color: #1a73e8 !important;
-    }
-    </style>
-    """, unsafe_allow_html=True)
-
-# --- FUNZIONI LOGICHE ---
-def analizza_etichetta(image_bytes):
+# --- 2. FUNZIONI DI SUPPORTO ---
+def analizza_con_google(image_bytes):
     try:
         client = vision.ImageAnnotatorClient()
         image = vision.Image(content=image_bytes)
         response = client.text_detection(image=image)
-        testo = response.text_annotations[0].description if response.text_annotations else ""
-        
-        # Estrazione automatica
-        dati = {"barcode": "", "fornitore": ""}
-        barcode_match = re.search(r'\b(S\d{7,15}|[0-9]{10,20}|[A-Z0-9]{15,})\b', testo)
-        if barcode_match: dati["barcode"] = barcode_match.group(1)
-        
-        testo_up = testo.upper()
-        if "LAMPRE" in testo_up: dati["fornitore"] = "Lampre"
-        elif "MARCEGAGLIA" in testo_up: dati["fornitore"] = "Marcegaglia"
-        elif "VARCOLOR" in testo_up: dati["fornitore"] = "Varcolor"
-        
-        return dati
-    except: return {"barcode": "", "fornitore": ""}
+        # Restituiamo il testo completo trovato
+        return response.text_annotations[0].description if response.text_annotations else ""
+    except Exception as e:
+        st.error(f"Errore Google Vision: {e}")
+        return ""
 
-# --- GESTIONE STATO ---
-if 'temp_data' not in st.session_state:
-    st.session_state.temp_data = {"barcode": "", "fornitore": ""}
-if 'archivio' not in st.session_state:
-    st.session_state.archivio = []
-
-# --- INTERFACCIA ---
-st.markdown('<div class="header-pt">', unsafe_allow_html=True)
-try:
-    st.image("ptsimbolo.png", width=80)
-except:
-    st.title("PT CARICO MERCI")
-st.markdown('</div>', unsafe_allow_html=True)
-
-tab1, tab2 = st.tabs(["📝 NUOVO CARICO", "📦 ARCHIVIO"])
-
-with tab1:
-    # 1. SCANNER (Ora integrato per funzionare subito)
-    st.markdown("### 📷 SCANSIONA")
-    foto = st.camera_input("Inquadra il QR o Barcode dell'etichetta")
+def estrai_dati_chirurgica(testo_intero):
+    testo_intero = testo_intero.upper()
+    testo_intero = testo_intero.replace('§', 'S').replace('|', 'I')
     
-    if foto:
-        risultati = analizza_etichetta(foto.getvalue())
-        st.session_state.temp_data = risultati
-        st.success(f"Dati rilevati: {risultati['barcode']}")
+    dati = {
+        "barcode": "Non trovato", "fornitore": "Sconosciuto", 
+        "spessore": 0.0, "peso": 0, "larghezza": 0, "lunghezza": 0.0,
+        "data_etichetta": datetime.now().strftime("%d/%m/%Y"),
+        "codice_colore": "", "descrizione": ""
+    }
 
-    # 2. FORM DI INSERIMENTO
-    with st.form("main_form", clear_on_submit=True):
-        st.markdown("---")
-        
-        # Codice a barre con pulsante "trigger"
-        col_a, col_b = st.columns([3, 1])
-        f_barcode = col_a.text_input("📦 CODICE A BARRE", value=st.session_state.temp_data["barcode"])
-        with col_b:
-            st.write("##")
-            st.form_submit_button("📷 SCAN")
+    # Mappatura Fornitori
+    fornitori_map = {
+        "MARCEGAGLIA": "MARCEGAGLIA", "LAMPRE": "LAMPRE", "ARCELOR": "ARCELORMITTAL",
+        "NOVELIS": "NOVELIS", "VARCOLOR": "VARCOLOR", "METALCOAT": "METALCOAT",
+        "SANDRINI": "SANDRINI METALLI", "VETRORESINA": "VETRORESINA SPA",
+        "FIBROSAN": "FIBROSAN", "RIVIERASCA": "RIVIERASCA"
+    }
+    
+    for chiave, nome in fornitori_map.items():
+        if chiave in testo_intero:
+            dati["fornitore"] = nome
+            break
 
-        f_fornitore = st.text_input("🏭 PRODUTTORE/FORNITORE", value=st.session_state.temp_data["fornitore"])
-        
-        c1, c2 = st.columns(2)
-        f_spessore = c1.number_input("📏 SPESSORE DICHIARATO", format="%.2f", step=0.01)
-        f_arrivo = c2.date_input("📅 DATA ARRIVO", datetime.now())
-        
-        f_descrizione = st.text_input("📝 DESCRIZIONE")
-        f_colore = st.text_input("🎨 CODICE COLORE")
-        
-        c3, c4 = st.columns(2)
-        f_peso = c3.number_input("⚖️ PESO (KG)", step=1)
-        f_mq = c4.number_input("📐 METRI QUADRI", step=0.01)
-        
-        c5, c6 = st.columns(2)
-        f_linea = c5.selectbox("🏗️ LINEA", ["1", "2"])
-        f_terminato = c6.selectbox("🏁 TERMINATO", ["", "SI", "NO"], index=0)
+    # Barcode
+    if dati["fornitore"] == "LAMPRE":
+        match = re.search(r'S\s*(\d{9,10})', testo_intero)
+        if match: dati["barcode"] = "S" + match.group(1)
+    else:
+        match = re.search(r'\b(\d{9,12})\b', testo_intero)
+        if match: dati["barcode"] = match.group(1)
 
-        # Bottone Salva
-        salva = st.form_submit_button("🚀 REGISTRA CARICO")
-        
-        if salva:
-            nuovo_record = {
-                "Codice a barre": f_barcode,
-                "Produttore/Fornitore": f_fornitore,
-                "Spessore dichiarato": f_spessore,
-                "Arrivo": f_arrivo.strftime("%Y-%m-%d"),
-                "Descrizione": f_descrizione,
-                "Codice Colore": f_colore,
-                "Peso": f_peso,
-                "Metri Quadri": f_mq,
-                "Terminato": f_terminato,
-                "Linea": f_linea
-            }
-            st.session_state.archivio.append(nuovo_record)
-            st.session_state.temp_data = {"barcode": "", "fornitore": ""} # Pulisce per il prossimo
-            st.success("Carico salvato con successo!")
+    # Spessore
+    if any(x in dati["fornitore"] for x in ["VETRORESINA", "FIBROSAN", "RIVIERASCA"]):
+        match_sp = re.search(r'(\d[.,]\d)', testo_intero)
+        if match_sp: dati["spessore"] = float(match_sp.group(1).replace(',', '.'))
+    else:
+        match_sp = re.search(r'(0[.,]\d{2,3})', testo_intero)
+        if match_sp: dati["spessore"] = float(match_sp.group(1).replace(',', '.'))
 
-with tab2:
-    if st.session_state.archivio:
-        df = pd.DataFrame(st.session_state.archivio)
-        st.dataframe(df, use_container_width=True)
+    # Peso e Larghezza
+    match_peso = re.search(r'(\d{3,5})\s*(?:KG|NET|NETTO)', testo_intero)
+    if match_peso: dati["peso"] = int(match_peso.group(1))
+    
+    match_largh = re.search(r'\b(1000|1200|1219|1225|1250|1500|600|360)\b', testo_intero)
+    if match_largh: dati["larghezza"] = int(match_largh.group(1))
+
+    # Colore
+    if "9010" in testo_intero: dati["codice_colore"] = "RAL 9010"
+    
+    return dati
+
+def check_password():
+    if st.session_state.get("password_correct", False):
+        return True
+
+    if not os.path.exists(PASSWORD_FILE):
+        st.title("🛡️ Configurazione Iniziale")
+        new_pass = st.text_input("Crea Password Master", type="password")
+        conf_pass = st.text_input("Conferma Password", type="password")
+        if st.button("Salva"):
+            if new_pass == conf_pass and len(new_pass) > 3:
+                with open(PASSWORD_FILE, "w") as f: f.write(new_pass)
+                st.rerun()
+        return False
+
+    st.title("🔒 Accesso Riservato")
+    input_pass = st.text_input("Password:", type="password")
+    if st.button("Sblocca"):
+        with open(PASSWORD_FILE, "r") as f: saved_pass = f.read().strip()
+        if input_pass == saved_pass:
+            st.session_state["password_correct"] = True
+            st.rerun()
+        else:
+            st.error("Password errata.")
+    return False
+
+# --- 3. LOGICA PRINCIPALE ---
+if check_password():
+    # Setup Google Credentials
+    if "google_credentials" in st.secrets:
+        creds_dict = dict(st.secrets["google_credentials"])
+        if not os.path.exists("temp_key.json"):
+            with open("temp_key.json", "w") as f:
+                json.dump(creds_dict, f)
+        os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "temp_key.json"
+
+    st.title("🏗️ SB Supporti - Carico")
+    
+    if 'session_data' not in st.session_state:
+        st.session_state.session_data = []
+
+    input_mode = st.radio("Metodo:", ["Scatta Foto", "Galleria"], horizontal=True)
+
+    foto_bytes = None
+    if input_mode == "Scatta Foto":
+        camera_img = st.camera_input("Inquadra")
+        if camera_img: foto_bytes = camera_img.getvalue()
+    else:
+        uploaded_file = st.file_uploader("Carica", type=['jpg', 'png'])
+        if uploaded_file: foto_bytes = uploaded_file.getvalue()
+
+    if foto_bytes:
+        with st.spinner('Analisi in corso...'):
+            testo_ocr = analizza_con_google(foto_bytes)
+            if testo_ocr:
+                info = estrai_dati_chirurgica(testo_ocr)
+                linea_calc = "1" if info["larghezza"] in [1200, 1225, 1250] else "2"
+                
+                with st.form("conferma"):
+                    f_bar = st.text_input("Codice", info["barcode"])
+                    f_forn = st.text_input("Fornitore", info["fornitore"])
+                    f_peso = st.number_input("Peso", value=info["peso"])
+                    f_spess = st.number_input("Spessore", value=info["spessore"], format="%.2f")
+                    f_linea = st.selectbox("Linea", ["1", "2"], index=0 if linea_calc=="1" else 1)
+                    
+                    if st.form_submit_button("AGGIUNGI"):
+                        st.session_state.session_data.append({
+                            "Codice": f_bar, "Fornitore": f_forn, "Peso": f_peso, "Spessore": f_spess, "Linea": f_linea
+                        })
+                        st.success("Aggiunto!")
+
+    if st.session_state.session_data:
+        df = pd.DataFrame(st.session_state.session_data)
+        st.dataframe(df)
         
-        # Export Excel
+        # Download Excel
         output = BytesIO()
         with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
             df.to_excel(writer, index=False)
-        st.download_button("📥 SCARICA EXCEL", output.getvalue(), "carico_merci.xlsx")
-    else:
-        st.info("Nessun dato registrato.")
+        st.download_button("📥 SCARICA EXCEL", output.getvalue(), "carico.xlsx")
+
+    if st.sidebar.button("Logout"):
+        st.session_state["password_correct"] = False
+        st.rerun()
