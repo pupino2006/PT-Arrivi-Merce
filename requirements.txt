@@ -3,4 +3,5 @@ pandas
 google-cloud-vision
 Pillow
 xlsxwriter
-streamlit-barcode-reader
+opencv-python-headless
+pyzbar
