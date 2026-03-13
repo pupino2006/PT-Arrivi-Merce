@@ -58,6 +58,10 @@ tzdata==2025.3
 urllib3==2.6.3
 watchdog==6.0.0
 xlsxwriter==3.2.9
+[supabase]
+url = "https://vnzrewcbnoqbqvzckome.supabase.co"
+key = "sb_publishable_Sq9txbu-PmKdbxETSx2cjw_WqWEFBPO"
+
 
 
 
