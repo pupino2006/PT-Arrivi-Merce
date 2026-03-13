@@ -10,7 +10,7 @@ from PIL import Image
 from streamlit_qrcode_scanner import qrcode_scanner
 
 # --- 1. CONFIGURAZIONE E DESIGN ---
-st.set_page_config(page_title="SB App Arrivi", layout="centered")
+st.set_page_config(page_title="SB App Arrivi", layout="centered", page_icon="ptsimbolo.png")
 
 st.markdown("""
     <style>
@@ -206,4 +206,5 @@ with tab2:
         if st.button("🗑️ SVUOTA ARCHIVIO"):
             st.session_state.archivio = []
             st.rerun()
+
 
