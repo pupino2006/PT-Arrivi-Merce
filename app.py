@@ -153,7 +153,6 @@ with tab1:
         c_b1, c_b2 = st.columns([3,1])
         f_barcode = c_b1.text_input("📦 CODICE A BARRE", value=st.session_state.temp.get("barcode", ""))
         with c_b2:
-            st.write("##")
             if st.form_submit_button("📷 SCAN"):
                 st.session_state.show_scan = True
                 st.rerun()
@@ -206,6 +205,7 @@ with tab2:
         if st.button("🗑️ SVUOTA ARCHIVIO"):
             st.session_state.archivio = []
             st.rerun()
+
 
 
 
