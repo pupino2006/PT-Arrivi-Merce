@@ -51,11 +51,14 @@ st.markdown("""
 # --- 2. LOGICA DI ANALISI GOOGLE VISION ---
 def analizza_etichetta(image_bytes):
     try:
-        creds_dict = json.loads(st.secrets["GOOGLE_APPLICATION_CREDENTIALS_JSON"])
-        creds = service_account.Credentials.from_service_account_info(creds_dict)
+        # Invece di json.loads, usiamo direttamente il dizionario dai Secrets
+        creds_info = st.secrets["google_credentials"]
+        creds = service_account.Credentials.from_service_account_info(creds_info)
+        
         client = vision.ImageAnnotatorClient(credentials=creds)
         image = vision.Image(content=image_bytes)
         response = client.text_detection(image=image)
+        
         return response.text_annotations[0].description if response.text_annotations else ""
     except Exception as e:
         st.error(f"Errore Google Vision: {e}")
@@ -203,3 +206,4 @@ with tab2:
         if st.button("🗑️ SVUOTA ARCHIVIO"):
             st.session_state.archivio = []
             st.rerun()
+
