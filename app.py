@@ -180,7 +180,7 @@ with tab1:
         f_linea = c6.selectbox("🏗️ LINEA", ["1", "2"])
 
         # 10. Terminato
-        f_term = st.selectbox("🏁 TERMINATO", ["NO", "SI"])
+        f_term = st.selectbox("🏁 TERMINATO", [" ", "NO", "SI"])
 
         if st.form_submit_button("🚀 REGISTRA MATERIALE"):
             st.session_state.archivio.append({
@@ -206,6 +206,7 @@ with tab2:
         if st.button("🗑️ SVUOTA ARCHIVIO"):
             st.session_state.archivio = []
             st.rerun()
+
 
 
 
