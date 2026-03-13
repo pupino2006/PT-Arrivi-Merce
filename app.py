@@ -106,7 +106,7 @@ if not st.session_state.auth:
     st.markdown("<h1 style='text-align: center;'>🔐 ACCESSO SB</h1>", unsafe_allow_html=True)
     pwd = st.text_input("Inserisci Password", type="password")
     if st.button("ENTRA"):
-        if pwd == "PIETRO2024":
+        if pwd == "Pannelli.2021":
             st.session_state.auth = True
             st.rerun()
         else: st.error("Accesso Negato")
@@ -117,7 +117,7 @@ if 'archivio' not in st.session_state: st.session_state.archivio = []
 if 'temp' not in st.session_state: st.session_state.temp = {}
 if 'show_scan' not in st.session_state: st.session_state.show_scan = False
 
-st.markdown("<h2 class='orange-text'>PIETRO ROSETO - GESTIONE ARRIVI</h2>", unsafe_allow_html=True)
+st.markdown("<h2 class='orange-text'>PT Roseto - GESTIONE ARRIVI</h2>", unsafe_allow_html=True)
 
 tab1, tab2 = st.tabs(["📝 REGISTRA CARICO", "📦 ARCHIVIO"])
 
@@ -206,5 +206,6 @@ with tab2:
         if st.button("🗑️ SVUOTA ARCHIVIO"):
             st.session_state.archivio = []
             st.rerun()
+
 
 
