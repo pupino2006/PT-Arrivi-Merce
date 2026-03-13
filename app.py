@@ -8,9 +8,10 @@ from google.cloud import vision
 from google.oauth2 import service_account
 from PIL import Image
 from streamlit_qrcode_scanner import qrcode_scanner
+from supabase import create_client, Client
 
 # --- 1. CONFIGURAZIONE E DESIGN ---
-st.set_page_config(page_title="SB App Arrivi", layout="centered", page_icon="ptsimbolo.png")
+st.set_page_config(page_title="Arrivi Merce PT", layout="centered", page_icon="ptsimbolo.png")
 
 st.markdown("""
     <style>
@@ -48,10 +49,31 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
+# --- LISTE FISSE E SUPABASE ---
+FORNITORI_FISSI = [
+    "Alusteel", "Vetroresina Spa", "stacbond", "Metalcoat S.P.A.", "Sandrini", 
+    "Arcelormittal", "Arv", "Efinox", "Ediltec", "Italcoat", "Lampre", 
+    "Marcegaglia", "Novelis", "Origoni e Zanoletti", "Sandrini/Sandrini M.", 
+    "Varcolor", "Brianza", "Polser", "Rivierasca", "Stabilit", "Fibrosan"
+]
+
+@st.cache_data(ttl=600)
+def carica_db_supabase():
+    try:
+        url = st.secrets["supabase"]["url"]
+        key = st.secrets["supabase"]["key"]
+        supabase: Client = create_client(url, key)
+        response = supabase.table("db_mp_arrivi").select("*").execute()
+        return pd.DataFrame(response.data)
+    except Exception as e:
+        st.warning("⚠️ Impossibile connettersi a Supabase. Controlla i Secrets.")
+        return pd.DataFrame(columns=["Produttore/Fornitore", "Descrizione", "Codice Colore"])
+
+df_db = carica_db_supabase()
+
 # --- 2. LOGICA DI ANALISI GOOGLE VISION ---
 def analizza_etichetta(image_bytes):
     try:
-        # Invece di json.loads, usiamo direttamente il dizionario dai Secrets
         creds_info = st.secrets["google_credentials"]
         creds = service_account.Credentials.from_service_account_info(creds_info)
         
@@ -66,35 +88,28 @@ def analizza_etichetta(image_bytes):
 
 def estrai_tutti_i_dati(testo):
     testo_u = testo.upper().replace('\n', ' ')
-    # Inizializziamo i campi
     dati = {
         "barcode": "", "fornitore": "", "spessore": 0.0, 
         "peso": 0, "mq": 0.0, "colore": "", "desc": ""
     }
     
-    # 1. BARCODE: Cerca stringhe che iniziano con S o sequenze lunghe di numeri
     m_bar = re.search(r'\b(S\d{7,15}|[0-9]{10,20})\b', testo_u)
     if m_bar: dati["barcode"] = m_bar.group(1)
     
-    # 2. FORNITORE: Ricerca per parole chiave
     for f in ["LAMPRE", "MARCEGAGLIA", "VARCOLOR", "METALCOAT", "ARVEDI"]:
         if f in testo_u:
             dati["fornitore"] = f.capitalize()
             break
             
-    # 3. SPESSORE: Cerca formati come 0.50 o 0,60
     m_sp = re.search(r'(0[.,]\d{2})', testo_u)
     if m_sp: dati["spessore"] = float(m_sp.group(1).replace(',', '.'))
     
-    # 4. PESO: Cerca numeri seguiti da KG o vicino a "NET"
     m_peso = re.search(r'(\d{3,5})\s*KG', testo_u)
     if m_peso: dati["peso"] = int(m_peso.group(1))
     
-    # 5. MQ: Cerca numeri decimali vicino a MQ o M2
     m_mq = re.search(r'(\d{2,4}[.,]\d{2})\s*(MQ|M2)', testo_u)
     if m_mq: dati["mq"] = float(m_mq.group(1).replace(',', '.'))
 
-    # 6. COLORE: Prova a cercare codici RAL (es: RAL 9010)
     m_ral = re.search(r'(RAL\s*\d{4})', testo_u)
     if m_ral: dati["colore"] = m_ral.group(1)
 
@@ -117,7 +132,7 @@ if 'archivio' not in st.session_state: st.session_state.archivio = []
 if 'temp' not in st.session_state: st.session_state.temp = {}
 if 'show_scan' not in st.session_state: st.session_state.show_scan = False
 
-st.markdown("<h2 class='orange-text'>PT Roseto - GESTIONE ARRIVI</h2>", unsafe_allow_html=True)
+st.markdown("<h2 class='orange-text'>Arrivi Merce PT</h2>", unsafe_allow_html=True)
 
 tab1, tab2 = st.tabs(["📝 REGISTRA CARICO", "📦 ARCHIVIO"])
 
@@ -145,58 +160,97 @@ with tab1:
             st.rerun()
         st.button("CHIUDI SCANNER", on_click=lambda: st.session_state.update({"show_scan": False}))
 
-    # IL FORM CON TUTTI I 10 CAMPI
-    with st.form("form_registrazione", clear_on_submit=True):
-        st.markdown("### 📋 Modulo di Carico")
-        
-        # 1. Barcode
-        c_b1, c_b2 = st.columns([3,1])
-        f_barcode = c_b1.text_input("📦 CODICE A BARRE", value=st.session_state.temp.get("barcode", ""))
-        with c_b2:
-            if st.form_submit_button("📷 SCAN"):
-                st.session_state.show_scan = True
-                st.rerun()
+    # MODULO DI CARICO (Senza st.form per permettere le liste a cascata)
+    st.markdown("### 📋 Modulo di Carico")
+    
+    # 1. Barcode
+    c_b1, c_b2 = st.columns([3,1], vertical_alignment="bottom")
+    f_barcode = c_b1.text_input("📦 CODICE A BARRE", value=st.session_state.temp.get("barcode", ""))
+    with c_b2:
+        if st.button("📷 SCAN"):
+            st.session_state.show_scan = True
+            st.rerun()
 
-        # 2. Fornitore
-        f_forn = st.text_input("🏭 PRODUTTORE/FORNITORE", value=st.session_state.temp.get("fornitore", ""))
+    # 2. Fornitore (con logica OCR)
+    ocr_forn = st.session_state.temp.get("fornitore", "")
+    forn_options = ["Seleziona..."] + sorted(FORNITORI_FISSI) + ["ALTRO (Scrittura Libera)"]
+    idx_forn = 0
+    if ocr_forn:
+        for i, f in enumerate(forn_options):
+            if ocr_forn.upper() in f.upper():
+                idx_forn = i
+                break
 
-        # 3 e 4. Spessore e Data
-        c1, c2 = st.columns(2)
-        f_spess = c1.number_input("📏 SPESSORE DICHIARATO", value=float(st.session_state.temp.get("spessore", 0.0)), format="%.2f")
-        f_data = c2.date_input("📅 DATA ARRIVO", datetime.now())
+    scelta_forn = st.selectbox("🏭 PRODUTTORE/FORNITORE", options=forn_options, index=idx_forn)
+    
+    if scelta_forn == "ALTRO (Scrittura Libera)":
+        f_forn = st.text_input("Scrivi Produttore/Fornitore", value=ocr_forn)
+    else:
+        f_forn = scelta_forn if scelta_forn != "Seleziona..." else ""
 
-        # 5. Descrizione
-        f_desc = st.text_input("📝 DESCRIZIONE", value=st.session_state.temp.get("desc", ""))
+    # 3. Descrizione (Filtrata da Supabase)
+    desc_options = ["Seleziona..."]
+    if f_forn and not df_db.empty:
+        filtro_db = df_db[df_db["Produttore/Fornitore"].str.contains(f_forn, case=False, na=False)]
+        desc_uniche = filtro_db["Descrizione"].dropna().unique().tolist()
+        desc_options.extend(sorted(desc_uniche))
+    desc_options.append("ALTRO (Scrittura Libera)")
 
-        # 6 e 7. Colore e Peso
-        c3, c4 = st.columns(2)
-        f_col = c3.text_input("🎨 CODICE COLORE", value=st.session_state.temp.get("colore", ""))
-        f_peso = c4.number_input("⚖️ PESO (KG)", value=int(st.session_state.temp.get("peso", 0)))
+    ocr_desc = st.session_state.temp.get("desc", "")
+    scelta_desc = st.selectbox("📝 DESCRIZIONE", options=desc_options)
 
-        # 8 e 9. MQ e Linea
-        c5, c6 = st.columns(2)
-        f_mq = c5.number_input("📐 METRI QUADRI", value=float(st.session_state.temp.get("mq", 0.0)), format="%.2f")
-        f_linea = c6.selectbox("🏗️ LINEA", ["1", "2"])
+    if scelta_desc == "ALTRO (Scrittura Libera)":
+        f_desc = st.text_input("Scrivi Descrizione", value=ocr_desc)
+    else:
+        f_desc = scelta_desc if scelta_desc != "Seleziona..." else ""
 
-        # 10. Terminato
-        f_term = st.selectbox("🏁 TERMINATO", [" ", "NO", "SI"])
+    # 4. Colore (Filtrato da Fornitore + Descrizione)
+    color_options = ["Seleziona..."]
+    if f_forn and f_desc and not df_db.empty:
+        filtro_colore = df_db[(df_db["Produttore/Fornitore"].str.contains(f_forn, case=False, na=False)) & 
+                              (df_db["Descrizione"] == f_desc)]
+        col_unici = filtro_colore["Codice Colore"].dropna().unique().tolist()
+        color_options.extend(sorted(col_unici))
+    color_options.append("ALTRO (Scrittura Libera)")
 
-        if st.form_submit_button("🚀 REGISTRA MATERIALE"):
-            st.session_state.archivio.append({
-                "Codice a barre": f_barcode, "Produttore/Fornitore": f_forn,
-                "Spessore dichiarato": f_spess, "Arrivo": f_data.strftime("%d/%m/%Y"),
-                "Descrizione": f_desc, "Codice Colore": f_col,
-                "Peso": f_peso, "Metri Quadri": f_mq, "Terminato": f_term, "Linea": f_linea
-            })
-            st.session_state.temp = {}
-            st.success("✅ Salvato con successo!")
+    ocr_colore = st.session_state.temp.get("colore", "")
+    
+    # Layout a colonne per il resto
+    c1, c2 = st.columns(2)
+    scelta_col = c1.selectbox("🎨 CODICE COLORE", options=color_options)
+    if scelta_col == "ALTRO (Scrittura Libera)":
+        f_col = c1.text_input("Scrivi Codice Colore", value=ocr_colore)
+    else:
+        f_col = scelta_col if scelta_col != "Seleziona..." else ""
+
+    f_spess = c2.number_input("📏 SPESSORE DICHIARATO", value=float(st.session_state.temp.get("spessore", 0.0)), format="%.2f")
+    
+    c3, c4 = st.columns(2)
+    f_peso = c3.number_input("⚖️ PESO (KG)", value=int(st.session_state.temp.get("peso", 0)))
+    f_mq = c4.number_input("📐 METRI QUADRI", value=float(st.session_state.temp.get("mq", 0.0)), format="%.2f")
+
+    c5, c6 = st.columns(2)
+    f_data = c5.date_input("📅 DATA ARRIVO", datetime.now())
+    f_linea = c6.selectbox("🏗️ LINEA", ["1", "2"])
+
+    f_term = st.selectbox("🏁 TERMINATO", [" ", "NO", "SI"])
+
+    if st.button("🚀 REGISTRA MATERIALE"):
+        st.session_state.archivio.append({
+            "Codice a barre": f_barcode, "Produttore/Fornitore": f_forn,
+            "Spessore dichiarato": f_spess, "Arrivo": f_data.strftime("%d/%m/%Y"),
+            "Descrizione": f_desc, "Codice Colore": f_col,
+            "Peso": f_peso, "Metri Quadri": f_mq, "Terminato": f_term, "Linea": f_linea
+        })
+        st.session_state.temp = {} # Pulisce i dati OCR temporanei
+        st.success("✅ Salvato con successo!")
+        st.rerun()
 
 with tab2:
     if st.session_state.archivio:
         df = pd.DataFrame(st.session_state.archivio)
         st.dataframe(df, use_container_width=True)
         
-        # EXPORT EXCEL
         out = BytesIO()
         with pd.ExcelWriter(out, engine='xlsxwriter') as wr:
             df.to_excel(wr, index=False)
@@ -205,8 +259,3 @@ with tab2:
         if st.button("🗑️ SVUOTA ARCHIVIO"):
             st.session_state.archivio = []
             st.rerun()
-
-
-
-
-
