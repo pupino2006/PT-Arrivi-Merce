@@ -9,6 +9,37 @@ from google.oauth2 import service_account
 from PIL import Image
 from streamlit_qrcode_scanner import qrcode_scanner
 from supabase import create_client, Client
+import easyocr
+
+# Inizializza EasyOCR (caricato una sola volta in cache)
+@st.cache_resource
+def get_easyocr_reader():
+    return easyocr.Reader(['it', 'en'], gpu=True)
+
+# Dizionario fornitori per matching fuzzy
+FORNITORI_MAP = {
+    "LAMPRE": "Lampre",
+    "MARCEGAGLIA": "Marcegaglia",
+    "VARCOLOR": "Varcolor",
+    "METALCOAT": "Metalcoat S.P.A.",
+    "ARVEDI": "Arv",
+    "ARV": "Arv",
+    "ALUSTEEL": "Alusteel",
+    "STACBOND": "stacbond",
+    "VETRORESINA": "Vetroresina Spa",
+    "EFINOX": "Efinox",
+    "EDILTEC": "Ediltec",
+    "ITALCOAT": "Italcoat",
+    "NOVELIS": "Novelis",
+    "ORIGONI": "Origoni e Zanoletti",
+    "SANDRINI": "Sandrini",
+    "BRIANZA": "Brianza",
+    "POLSER": "Polser",
+    "RIVIERASCA": "Rivierasca",
+    "STABILIT": "Stabilit",
+    "FIBROSAN": "Fibrosan",
+    "ARCELORMITTAL": "Arcelormittal",
+}
 
 # --- 1. CONFIGURAZIONE E DESIGN ---
 st.set_page_config(page_title="Arrivi Merce PT", layout="centered", page_icon="ptsimbolo.png")
@@ -71,8 +102,9 @@ def carica_db_supabase():
 
 df_db = carica_db_supabase()
 
-# --- 2. LOGICA DI ANALISI GOOGLE VISION ---
-def analizza_etichetta(image_bytes):
+# --- 2. LOGICA DI ANALISI GOOGLE VISION E EASYOCR ---
+def analizza_etichetta_google(image_bytes):
+    """Analisi con Google Vision API"""
     try:
         creds_info = st.secrets["google_credentials"]
         creds = service_account.Credentials.from_service_account_info(creds_info)
@@ -86,32 +118,126 @@ def analizza_etichetta(image_bytes):
         st.error(f"Errore Google Vision: {e}")
         return ""
 
-def estrai_tutti_i_dati(testo):
-    testo_u = testo.upper().replace('\n', ' ')
+def analizza_etichetta_easyocr(image_bytes):
+    """Analisi con EasyOCR (offline)"""
+    try:
+        reader = get_easyocr_reader()
+        image = Image.open(BytesIO(image_bytes))
+        result = reader.readtext(BytesIO(image_bytes), detail=0)
+        return ' '.join(result)
+    except Exception as e:
+        st.error(f"Errore EasyOCR: {e}")
+        return ""
+
+def estrai_tutti_i_dati(testo, mostra_debug=False):
+    """Estrazione avanzata con regex multiple e fuzzy matching"""
+    if not testo:
+        return {"barcode": "", "fornitore": "", "spessore": 0.0, "peso": 0, "mq": 0.0, "colore": "", "desc": ""}
+    
+    testo_u = testo.upper()
+    testo_norm = re.sub(r'\s+', ' ', testo_u)  # Normalizza spazi
+    
+    if mostra_debug:
+        st.text_area("📄 Testo OCR grezzo (per verifica):", value=testo, height=150)
+    
     dati = {
-        "barcode": "", "fornitore": "", "spessore": 0.0, 
-        "peso": 0, "mq": 0.0, "colore": "", "desc": ""
+        "barcode": "", 
+        "fornitore": "", 
+        "spessore": 0.0, 
+        "peso": 0, 
+        "mq": 0.0, 
+        "colore": "", 
+        "desc": ""
     }
     
-    m_bar = re.search(r'\b(S\d{7,15}|[0-9]{10,20})\b', testo_u)
-    if m_bar: dati["barcode"] = m_bar.group(1)
-    
-    for f in ["LAMPRE", "MARCEGAGLIA", "VARCOLOR", "METALCOAT", "ARVEDI"]:
-        if f in testo_u:
-            dati["fornitore"] = f.capitalize()
+    # === BARCODE: pattern multipli ===
+    patterns_barcode = [
+        r'\bS\d{8,15}\b',           # S + 8-15 cifre
+        r'\b\d{12,20}\b',           # Solo cifre 12-20
+        r'\b[A-Z]{2,4}\d{6,12}\b',  # Lettere + cifre
+        r'\b\d{8}[A-Z0-9]{2,8}\b',  # Cifre + lettere
+    ]
+    for pat in patterns_barcode:
+        m = re.search(pat, testo_norm)
+        if m:
+            dati["barcode"] = m.group()
             break
-            
-    m_sp = re.search(r'(0[.,]\d{2})', testo_u)
-    if m_sp: dati["spessore"] = float(m_sp.group(1).replace(',', '.'))
     
-    m_peso = re.search(r'(\d{3,5})\s*KG', testo_u)
-    if m_peso: dati["peso"] = int(m_peso.group(1))
+    # === FORNITORE: fuzzy matching con dizionario ===
+    for chiave, valore in FORNITORI_MAP.items():
+        if chiave in testo_norm:
+            dati["fornitore"] = valore
+            break
     
-    m_mq = re.search(r'(\d{2,4}[.,]\d{2})\s*(MQ|M2)', testo_u)
-    if m_mq: dati["mq"] = float(m_mq.group(1).replace(',', '.'))
-
-    m_ral = re.search(r'(RAL\s*\d{4})', testo_u)
-    if m_ral: dati["colore"] = m_ral.group(1)
+    # === SPESSORE: pattern multipli per catturare diversi formati ===
+    patterns_spessore = [
+        r'SPESSORE[:\s]*(\d+[.,]\d{2})',  # SPESSORE: 0.50
+        r'(\d[.,]\d{2})\s*MM\b',           # 0.50 MM
+        r'\b(0[.,]\d{2})\b',               # 0.50 standalone
+        r'\b(\d[.,]\d{2})\s*(MM|MILL)?',   # 2.00MM o 2.00 MILL
+    ]
+    for pat in patterns_spessore:
+        m = re.search(pat, testo_norm)
+        if m:
+            try:
+                dati["spessore"] = float(m.group(1).replace(',', '.'))
+                break
+            except:
+                pass
+    
+    # === PESO: KG con vari formati ===
+    patterns_peso = [
+        r'PESO[:\s]*(\d{3,5})\s*KG',       # PESO: 1250 KG
+        r'(\d{3,5})\s*KG\b',               # 1250 KG
+        r'KG\s*(\d{3,5})\b',               # KG 1250
+        r'PESO\s*NETTO[:\s]*(\d{3,5})',    # PESO NETTO: 1250
+    ]
+    for pat in patterns_peso:
+        m = re.search(pat, testo_norm)
+        if m:
+            try:
+                dati["peso"] = int(m.group(1))
+                break
+            except:
+                pass
+    
+    # === METRI QUADRI ===
+    patterns_mq = [
+        r'(?:MQ|M2|MQ\.)\s*[:\s]*(\d{2,4}[.,]\d{2})',  # MQ: 125.50
+        r'(\d{2,4}[.,]\d{2})\s*(?:MQ|M2)',              # 125.50 MQ
+        r'SUPERFICIE[:\s]*(\d{2,4}[.,]\d{2})',         # SUPERFICIE: 125.50
+    ]
+    for pat in patterns_mq:
+        m = re.search(pat, testo_norm)
+        if m:
+            try:
+                dati["mq"] = float(m.group(1).replace(',', '.'))
+                break
+            except:
+                pass
+    
+    # === COLORE: RAL, NCS, NOMI COMUNI ===
+    patterns_colore = [
+        r'RAL\s*(\d{4})',                     # RAL 7016
+        r'NCS\s*[S]?\s*(\d{4}[-\s]?[A-Z]{2})', # NCS 7016-M
+        r'COLORE[:\s]*([A-Z0-9\-]{3,15})',     # COLORE: grigio antracite
+    ]
+    for pat in patterns_colore:
+        m = re.search(pat, testo_norm)
+        if m:
+            dati["colore"] = m.group()
+            break
+    
+    # === DESCRIZIONE: cerca parole chiave ===
+    descrizioni = [
+        "PANNELLO", "LAMIERA", "COIL", "LASTRA", "RIBASSO",
+        "GOFRATO", "LISCIO", "PREVERNICIATO", "ALLUMINIO", "ACCIAIO",
+        "COMPOSITE", "SANDWICH", "PANEL", "ELEMENT"
+    ]
+    for desc in descrizioni:
+        if desc in testo_norm:
+            dati["desc"] = desc.lower()
+            break
 
     return dati
 
@@ -139,17 +265,36 @@ tab1, tab2 = st.tabs(["📝 REGISTRA CARICO", "📦 ARCHIVIO"])
 with tab1:
     # SEZIONE FOTO/FILE
     with st.expander("📷 ACQUISIZIONE AUTOMATICA (FOTO O GALLERIA)"):
+        # Scelta motore OCR
+        ocr_engine = st.radio("🧠 Motore OCR:", ["Google Vision API", "EasyOCR (Offline)"], horizontal=True, help="Google Vision è più preciso ma richiede connessione. EasyOCR funziona offline.")
+        
         tipo = st.radio("Sorgente:", ["Fotocamera", "Galleria Dispositivo"], horizontal=True)
         img = st.camera_input("Scatta") if tipo == "Fotocamera" else st.file_uploader("Carica file", type=['jpg','png','jpeg'])
         
         if img:
             if st.button("🔍 ANALIZZA ORA"):
                 with st.spinner("Estrazione dati in corso..."):
-                    testo_raw = analizza_etichetta(img.getvalue())
+                    # Usa il motore OCR selezionato
+                    if ocr_engine == "Google Vision API":
+                        testo_raw = analizza_etichetta_google(img.getvalue())
+                    else:
+                        testo_raw = analizza_etichetta_easyocr(img.getvalue())
+                    
                     if testo_raw:
+                        # Salva il testo grezzo per verifica
+                        st.session_state.ocr_raw = testo_raw
+                        # Estrai i dati
                         st.session_state.temp = estrai_tutti_i_dati(testo_raw)
-                        st.success("Dati pronti nel modulo sotto!")
+                        st.success("✅ Dati estratti! Verificali nel modulo sotto.")
                         st.rerun()
+        
+        # Preview del testo OCR se disponibile
+        if "ocr_raw" in st.session_state and st.session_state.ocr_raw:
+            with st.expander("📄 VEDI TESTO OCR ESTRATTO"):
+                st.code(st.session_state.ocr_raw, language=None)
+                if st.button("🗑️ PULISCI TESTO OCR"):
+                    st.session_state.ocr_raw = ""
+                    st.rerun()
 
     # SCANNER BARCODE LIVE
     if st.session_state.show_scan:
@@ -247,15 +392,83 @@ with tab1:
         st.rerun()
 
 with tab2:
+    st.markdown("### 🔍 RICERCA E FILTRI")
+    
+    # Filtri di ricerca
+    c1, c2, c3 = st.columns(3)
+    
+    with c1:
+        filtro_forn = st.selectbox("🏭 Filtra Fornitore", ["Tutti"] + sorted(FORNITORI_FISSI))
+    with c2:
+        filtro_colore = st.selectbox("🎨 Filtra Colore", ["Tutti"])
+    with c3:
+        filtro_linea = st.selectbox("🏗️ Filtra Linea", ["Tutti", "1", "2"])
+    
+    # Campo ricerca libera
+    cerca = st.text_input("🔎 Ricerca libera (barcode, descrizione...)", "")
+    
     if st.session_state.archivio:
         df = pd.DataFrame(st.session_state.archivio)
-        st.dataframe(df, use_container_width=True)
         
+        # Applica filtri
+        df_filtrato = df.copy()
+        
+        if filtro_forn != "Tutti":
+            df_filtrato = df_filtrato[df_filtrato["Produttore/Fornitore"].str.contains(filtro_forn, case=False, na=False)]
+        
+        if filtro_linea != "Tutti":
+            df_filtrato = df_filtrato[df_filtrato["Linea"] == filtro_linea]
+        
+        if cerca:
+            df_filtrato = df_filtrato[
+                df_filtrato.apply(lambda row: row.astype(str).str.contains(cerca, case=False).any(), axis=1)
+            ]
+        
+        # Aggiorna lista colori disponibili
+        if "Codice Colore" in df.columns:
+            colori_unici = ["Tutti"] + sorted(df["Codice Colore"].dropna().unique().tolist())
+            with c2:
+                filtro_colore = st.selectbox("🎨 Filtra Colore", colori_unici)
+            if filtro_colore != "Tutti":
+                df_filtrato = df_filtrato[df_filtrato["Codice Colore"] == filtro_colore]
+        
+        # Mostra statistiche
+        st.markdown("#### 📊 Statistiche")
+        c_stat1, c_stat2, c_stat3, c_stat4 = st.columns(4)
+        with c_stat1:
+            st.metric("📦 Totale Carichi", len(df_filtrato))
+        with c_stat2:
+            st.metric("⚖️ Peso Totale (KG)", f"{df_filtrato['Peso'].sum():,}" if "Peso" in df_filtrato else "0")
+        with c_stat3:
+            st.metric("📐 MQ Totali", f"{df_filtrato['Metri Quadri'].sum():.1f}" if "Metri Quadri" in df_filtrato else "0")
+        with c_stat4:
+            st.metric("🏭 Fornitori", df_filtrato["Produttore/Fornitore"].nunique() if "Produttore/Fornitore" in df_filtrato else 0)
+        
+        # Tabella dati filtrati
+        st.dataframe(df_filtrato, use_container_width=True, hide_index=True)
+        
+        # Esportazione
         out = BytesIO()
         with pd.ExcelWriter(out, engine='xlsxwriter') as wr:
-            df.to_excel(wr, index=False)
-        st.download_button("📥 SCARICA EXCEL", out.getvalue(), "archivio_carichi.xlsx")
+            df_filtrato.to_excel(wr, index=False)
+        st.download_button("📥 SCARICA EXCEL FILTRATO", out.getvalue(), "archivio_carichi_filtrato.xlsx")
         
-        if st.button("🗑️ SVUOTA ARCHIVIO"):
-            st.session_state.archivio = []
-            st.rerun()
+        # Azioni
+        c_az1, c_az2 = st.columns(2)
+        with c_az1:
+            if st.button("🗑️ SVUOTA ARCHIVIO"):
+                st.session_state.archivio = []
+                st.rerun()
+        with c_az2:
+            if st.button("💾 SALVA SU SUPABASE"):
+                try:
+                    url = st.secrets["supabase"]["url"]
+                    key = st.secrets["supabase"]["key"]
+                    supabase: Client = create_client(url, key)
+                    for item in st.session_state.archivio:
+                        supabase.table("arrivi_merce").insert(item).execute()
+                    st.success("✅ Salvato su Supabase!")
+                except Exception as e:
+                    st.error(f"Errore: {e}")
+    else:
+        st.info("📭 L'archivio è vuoto. Registra i carichi nella sezione 'Registra Carico'.")

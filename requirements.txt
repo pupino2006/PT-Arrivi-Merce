@@ -4,6 +4,7 @@ google-cloud-vision
 Pillow
 xlsxwriter
 streamlit-qrcode-scanner
+easyocr
 altair==6.0.0
 attrs==25.4.0
 blinker==1.9.0
