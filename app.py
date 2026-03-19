@@ -263,40 +263,120 @@ st.markdown("<h2 class='orange-text'>Arrivi Merce PT</h2>", unsafe_allow_html=Tr
 tab1, tab2 = st.tabs(["📝 REGISTRA CARICO", "📦 ARCHIVIO"])
 
 with tab1:
-    # SEZIONE FOTO/FILE
-    with st.expander("📷 ACQUISIZIONE AUTOMATICA (FOTO O GALLERIA)"):
+    # SEZIONE FOTO/FILE - CARICAMENTO MULTIPLO
+    with st.expander("📷 ACQUISIZIONE MULTIPLA ETICHETTE (LOTTO)"):
+        st.info("💡 Carica tutte le foto delle etichette del lotto contemporaneamente. Compila i dati comuni una sola volta!")
+        
         # Scelta motore OCR
         ocr_engine = st.radio("🧠 Motore OCR:", ["Google Vision API", "EasyOCR (Offline)"], horizontal=True, help="Google Vision è più preciso ma richiede connessione. EasyOCR funziona offline.")
         
-        tipo = st.radio("Sorgente:", ["Fotocamera", "Galleria Dispositivo"], horizontal=True)
-        img = st.camera_input("Scatta") if tipo == "Fotocamera" else st.file_uploader("Carica file", type=['jpg','png','jpeg'])
+        # File uploader per caricamento multiplo
+        uploaded_files = st.file_uploader("📂 Carica tutte le foto delle etichette (puoi selezionarne più di una)", 
+                                          type=['jpg','png','jpeg'], 
+                                          accept_multiple_files=True)
         
-        if img:
-            if st.button("🔍 ANALIZZA ORA"):
-                with st.spinner("Estrazione dati in corso..."):
-                    # Usa il motore OCR selezionato
-                    if ocr_engine == "Google Vision API":
-                        testo_raw = analizza_etichetta_google(img.getvalue())
-                    else:
-                        testo_raw = analizza_etichetta_easyocr(img.getvalue())
-                    
-                    if testo_raw:
-                        # Salva il testo grezzo per verifica
-                        st.session_state.ocr_raw = testo_raw
-                        # Estrai i dati
-                        st.session_state.temp = estrai_tutti_i_dati(testo_raw)
-                        st.success("✅ Dati estratti! Verificali nel modulo sotto.")
+        if uploaded_files:
+            st.success(f"✅ {len(uploaded_files)} etichette caricate")
+            
+            # Inizializza la lista delle etichette analizzate se non esiste
+            if 'etichette_lotto' not in st.session_state:
+                st.session_state.etichette_lotto = []
+            
+            # Se il numero di file è cambiato, ri-analizza tutto
+            if len(st.session_state.etichette_lotto) != len(uploaded_files):
+                if st.button("🔍 ANALIZZA TUTTE LE ETICHETTE"):
+                    with st.spinner("Analisi in corso..."):
+                        st.session_state.etichette_lotto = []
+                        for i, file in enumerate(uploaded_files):
+                            with st.spinner(f"Analizzando etichetta {i+1}/{len(uploaded_files)}..."):
+                                if ocr_engine == "Google Vision API":
+                                    testo_raw = analizza_etichetta_google(file.getvalue())
+                                else:
+                                    testo_raw = analizza_etichetta_easyocr(file.getvalue())
+                                
+                                dati = estrai_tutti_i_dati(testo_raw)
+                                st.session_state.etichette_lotto.append({
+                                    "index": i,
+                                    "filename": file.name,
+                                    "barcode": dati.get("barcode", ""),
+                                    "fornitore": dati.get("fornitore", ""),
+                                    "spessore": dati.get("spessore", 0.0),
+                                    "peso": dati.get("peso", 0),
+                                    "mq": dati.get("mq", 0.0),
+                                    "colore": dati.get("colore", ""),
+                                    "desc": dati.get("desc", ""),
+                                    "ocr_raw": testo_raw,
+                                    "manuale": False  # Flag per tracciare se il barcode è stato inserito manualmente
+                                })
+                        st.success(f"✅ Analizzate {len(st.session_state.etichette_lotto)} etichette!")
                         st.rerun()
-        
-        # Preview del testo OCR se disponibile
-        if "ocr_raw" in st.session_state and st.session_state.ocr_raw:
-            with st.expander("📄 VEDI TESTO OCR ESTRATTO"):
-                st.code(st.session_state.ocr_raw, language=None)
-                if st.button("🗑️ PULISCI TESTO OCR"):
-                    st.session_state.ocr_raw = ""
+            
+            # Mostra le etichette analizzate
+            if st.session_state.etichette_lotto:
+                st.markdown("### 📋 Riepilogo Etichette Analizzate")
+                
+                # Mostra tabella riepilogativa
+                for i, et in enumerate(st.session_state.etichette_lotto):
+                    status_icon = "✅" if et["barcode"] else "⚠️"
+                    st.markdown(f"**{status_icon} Etichetta {i+1}** ({et['filename']}) - Barcode: `{et['barcode'] or 'NON RILEVATO'}`")
+                
+                # Se ci sono barcode non rilevati, offre la possibilità di scansionarli
+                barcode_mancanti = [i for i, et in enumerate(st.session_state.etichette_lotto) if not et["barcode"]]
+                
+                if barcode_mancanti:
+                    st.warning(f"⚠️ {len(barcode_mancanti)} etichette senza barcode rilevato. Serve scansione manuale.")
+                    
+                    # Scanner per barcode mancanti
+                    if 'idx_scan_corrente' not in st.session_state:
+                        st.session_state.idx_scan_corrente = 0
+                    
+                    idx_corrente = barcode_mancanti[st.session_state.get('idx_scan_corrente', 0)]
+                    
+                    if st.session_state.show_scan:
+                        val = qrcode_scanner(key=f'scan_{idx_corrente}')
+                        if val:
+                            st.session_state.etichette_lotto[idx_corrente]["barcode"] = val
+                            st.session_state.etichette_lotto[idx_corrente]["manuale"] = True
+                            st.session_state.show_scan = False
+                            st.rerun()
+                        st.button("CHIUDI SCANNER", on_click=lambda: st.session_state.update({"show_scan": False}))
+                    
+                    # Mostra quale barcode scansionare
+                    st.markdown(f"#### 📷 Scansiona barcode per etichetta {idx_corrente + 1}")
+                    col_scan1, col_scan2 = st.columns([3, 1])
+                    with col_scan1:
+                        if st.button("🔴 ATTIVA SCANNER BARCODE"):
+                            st.session_state.show_scan = True
+                            st.rerun()
+                    with col_scan2:
+                        # Passa all'etichetta successiva se ce ne sono altre
+                        if len(barcode_mancanti) > 1:
+                            next_idx = (st.session_state.get('idx_scan_corrente', 0) + 1) % len(barcode_mancanti)
+                            if st.button("⏭️ SUCCESSIVA"):
+                                st.session_state.idx_scan_corrente = next_idx
+                                st.rerun()
+                    
+                    # Possibilità di inserire manualmente il barcode
+                    col_manual1, col_manual2 = st.columns([3, 1])
+                    barcode_manuale = col_manual1.text_input(f"Inserisci manualmente barcode etichetta {idx_corrente + 1}", key=f"manual_barcode_{idx_corrente}")
+                    if col_manual2.button("✅ CONFERMA", key=f"confirm_barcode_{idx_corrente}"):
+                        if barcode_manuale:
+                            st.session_state.etichette_lotto[idx_corrente]["barcode"] = barcode_manuale
+                            st.session_state.etichette_lotto[idx_corrente]["manuale"] = True
+                            st.rerun()
+                
+                # Link per pulire e ricominciare
+                if st.button("🗑️ NUOVO LOTTO (Pulisci tutto)"):
+                    st.session_state.etichette_lotto = []
+                    st.session_state.idx_scan_corrente = 0
                     st.rerun()
+        
+        else:
+            # Se non ci sono file, pulisci le etichette caricate precedentemente
+            if 'etichette_lotto' in st.session_state:
+                st.session_state.etichette_lotto = []
 
-    # SCANNER BARCODE LIVE
+    # SCANNER BARCODE LIVE (per uso singolo se necessario)
     if st.session_state.show_scan:
         val = qrcode_scanner(key='live_scan')
         if val:
@@ -305,91 +385,192 @@ with tab1:
             st.rerun()
         st.button("CHIUDI SCANNER", on_click=lambda: st.session_state.update({"show_scan": False}))
 
-    # MODULO DI CARICO (Senza st.form per permettere le liste a cascata)
-    st.markdown("### 📋 Modulo di Carico")
-    
-    # 1. Barcode
-    c_b1, c_b2 = st.columns([3,1], vertical_alignment="bottom")
-    f_barcode = c_b1.text_input("📦 CODICE A BARRE", value=st.session_state.temp.get("barcode", ""))
-    with c_b2:
-        if st.button("📷 SCAN"):
-            st.session_state.show_scan = True
+    # MODULO DATI COMUNI (solo se ci sono etichette caricate)
+    if 'etichette_lotto' in st.session_state and st.session_state.etichette_lotto:
+        st.markdown("---")
+        st.markdown("### 📝 DATI COMUNI DEL LOTTO (saranno applicati a tutte le etichette)")
+        st.info("💡 Compila questi dati una sola volta - verranno applicati a tutte le etichette caricate")
+        
+        # Pre-compila con i dati della prima etichetta (se disponibili)
+        prima_etichetta = st.session_state.etichette_lotto[0]
+        
+        # 1. Fornitore
+        ocr_forn = prima_etichetta.get("fornitore", "")
+        forn_options = ["Seleziona..."] + sorted(FORNITORI_FISSI) + ["ALTRO (Scrittura Libera)"]
+        idx_forn = 0
+        if ocr_forn:
+            for i, f in enumerate(forn_options):
+                if ocr_forn.upper() in f.upper():
+                    idx_forn = i
+                    break
+
+        scelta_forn = st.selectbox("🏭 PRODUTTORE/FORNITORE", options=forn_options, index=idx_forn, key="lotto_forn")
+        
+        if scelta_forn == "ALTRO (Scrittura Libera)":
+            f_forn = st.text_input("Scrivi Produttore/Fornitore", value=ocr_forn, key="lotto_forn_alt")
+        else:
+            f_forn = scelta_forn if scelta_forn != "Seleziona..." else ""
+
+        # 2. Descrizione
+        desc_options = ["Seleziona..."]
+        if f_forn and not df_db.empty:
+            filtro_db = df_db[df_db["Produttore/Fornitore"].str.contains(f_forn, case=False, na=False)]
+            desc_uniche = filtro_db["Descrizione"].dropna().unique().tolist()
+            desc_options.extend(sorted(desc_uniche))
+        desc_options.append("ALTRO (Scrittura Libera)")
+
+        ocr_desc = prima_etichetta.get("desc", "")
+        scelta_desc = st.selectbox("📝 DESCRIZIONE", options=desc_options, key="lotto_desc")
+
+        if scelta_desc == "ALTRO (Scrittura Libera)":
+            f_desc = st.text_input("Scrivi Descrizione", value=ocr_desc, key="lotto_desc_alt")
+        else:
+            f_desc = scelta_desc if scelta_desc != "Seleziona..." else ""
+
+        # 3. Colore
+        color_options = ["Seleziona..."]
+        if f_forn and f_desc and not df_db.empty:
+            filtro_colore = df_db[(df_db["Produttore/Fornitore"].str.contains(f_forn, case=False, na=False)) & 
+                                  (df_db["Descrizione"] == f_desc)]
+            col_unici = filtro_colore["Codice Colore"].dropna().unique().tolist()
+            color_options.extend(sorted(col_unici))
+        color_options.append("ALTRO (Scrittura Libera)")
+
+        ocr_colore = prima_etichetta.get("colore", "")
+        
+        c1, c2 = st.columns(2)
+        scelta_col = c1.selectbox("🎨 CODICE COLORE", options=color_options, key="lotto_col")
+        if scelta_col == "ALTRO (Scrittura Libera)":
+            f_col = c1.text_input("Scrivi Codice Colore", value=ocr_colore, key="lotto_col_alt")
+        else:
+            f_col = scelta_col if scelta_col != "Seleziona..." else ""
+
+        # 4. Spessore, Peso, MQ
+        f_spess = c2.number_input("📏 SPESSORE DICHIARATO", value=float(prima_etichetta.get("spessore", 0.0)), format="%.2f", key="lotto_spess")
+        
+        c3, c4 = st.columns(2)
+        f_peso = c3.number_input("⚖️ PESO SINGOLO (KG)", value=int(prima_etichetta.get("peso", 0)), help="Peso per singola etichetta", key="lotto_peso")
+        f_mq = c4.number_input("📐 MQ SINGOLI", value=float(prima_etichetta.get("mq", 0.0)), help="Metri quadri per singola etichetta", format="%.2f", key="lotto_mq")
+
+        c5, c6 = st.columns(2)
+        f_data = c5.date_input("📅 DATA ARRIVO", datetime.now(), key="lotto_data")
+        f_linea = c6.selectbox("🏗️ LINEA", ["1", "2"], key="lotto_linea")
+
+        f_term = st.selectbox("🏁 TERMINATO", [" ", "NO", "SI"], key="lotto_term")
+
+        # Verifica che tutti i barcode siano presenti
+        barcode_mancanti = [i+1 for i, et in enumerate(st.session_state.etichette_lotto) if not et["barcode"]]
+        
+        if barcode_mancanti:
+            st.error(f"⚠️ Impossibile salvare: barcode mancanti per le etichette {barcode_mancanti}. Scansionare prima.")
+        elif st.button(f"🚀 REGISTRA {len(st.session_state.etichette_lotto)} ETICHETTE"):
+            # Crea una riga per ogni etichetta
+            for et in st.session_state.etichette_lotto:
+                st.session_state.archivio.append({
+                    "Codice a barre": et["barcode"],
+                    "Produttore/Fornitore": f_forn,
+                    "Spessore dichiarato": f_spess,
+                    "Arrivo": f_data.strftime("%d/%m/%Y"),
+                    "Descrizione": f_desc,
+                    "Codice Colore": f_col,
+                    "Peso": f_peso,
+                    "Metri Quadri": f_mq,
+                    "Terminato": f_term,
+                    "Linea": f_linea
+                })
+            
+            # Pulisci le etichette caricate
+            st.session_state.etichette_lotto = []
+            st.session_state.idx_scan_corrente = 0
+            
+            st.success(f"✅ Salvate {len(st.session_state.archivio)} etichette nell'archivio!")
             st.rerun()
-
-    # 2. Fornitore (con logica OCR)
-    ocr_forn = st.session_state.temp.get("fornitore", "")
-    forn_options = ["Seleziona..."] + sorted(FORNITORI_FISSI) + ["ALTRO (Scrittura Libera)"]
-    idx_forn = 0
-    if ocr_forn:
-        for i, f in enumerate(forn_options):
-            if ocr_forn.upper() in f.upper():
-                idx_forn = i
-                break
-
-    scelta_forn = st.selectbox("🏭 PRODUTTORE/FORNITORE", options=forn_options, index=idx_forn)
     
-    if scelta_forn == "ALTRO (Scrittura Libera)":
-        f_forn = st.text_input("Scrivi Produttore/Fornitore", value=ocr_forn)
-    else:
-        f_forn = scelta_forn if scelta_forn != "Seleziona..." else ""
+    elif 'etichette_lotto' not in st.session_state or not st.session_state.etichette_lotto:
+        # MODULO DI CARICO SINGOLO (vecchia logica per compatibilità)
+        st.markdown("### 📋 Carico Singolo (nessun lotto caricato)")
+        
+        # 1. Barcode
+        c_b1, c_b2 = st.columns([3,1], vertical_alignment="bottom")
+        f_barcode = c_b1.text_input("📦 CODICE A BARRE", value=st.session_state.temp.get("barcode", ""))
+        with c_b2:
+            if st.button("📷 SCAN"):
+                st.session_state.show_scan = True
+                st.rerun()
 
-    # 3. Descrizione (Filtrata da Supabase)
-    desc_options = ["Seleziona..."]
-    if f_forn and not df_db.empty:
-        filtro_db = df_db[df_db["Produttore/Fornitore"].str.contains(f_forn, case=False, na=False)]
-        desc_uniche = filtro_db["Descrizione"].dropna().unique().tolist()
-        desc_options.extend(sorted(desc_uniche))
-    desc_options.append("ALTRO (Scrittura Libera)")
+        # 2. Fornitore
+        ocr_forn = st.session_state.temp.get("fornitore", "")
+        forn_options = ["Seleziona..."] + sorted(FORNITORI_FISSI) + ["ALTRO (Scrittura Libera)"]
+        idx_forn = 0
+        if ocr_forn:
+            for i, f in enumerate(forn_options):
+                if ocr_forn.upper() in f.upper():
+                    idx_forn = i
+                    break
 
-    ocr_desc = st.session_state.temp.get("desc", "")
-    scelta_desc = st.selectbox("📝 DESCRIZIONE", options=desc_options)
+        scelta_forn = st.selectbox("🏭 PRODUTTORE/FORNITORE", options=forn_options, index=idx_forn)
+        
+        if scelta_forn == "ALTRO (Scrittura Libera)":
+            f_forn = st.text_input("Scrivi Produttore/Fornitore", value=ocr_forn)
+        else:
+            f_forn = scelta_forn if scelta_forn != "Seleziona..." else ""
 
-    if scelta_desc == "ALTRO (Scrittura Libera)":
-        f_desc = st.text_input("Scrivi Descrizione", value=ocr_desc)
-    else:
-        f_desc = scelta_desc if scelta_desc != "Seleziona..." else ""
+        # 3. Descrizione
+        desc_options = ["Seleziona..."]
+        if f_forn and not df_db.empty:
+            filtro_db = df_db[df_db["Produttore/Fornitore"].str.contains(f_forn, case=False, na=False)]
+            desc_uniche = filtro_db["Descrizione"].dropna().unique().tolist()
+            desc_options.extend(sorted(desc_uniche))
+        desc_options.append("ALTRO (Scrittura Libera)")
 
-    # 4. Colore (Filtrato da Fornitore + Descrizione)
-    color_options = ["Seleziona..."]
-    if f_forn and f_desc and not df_db.empty:
-        filtro_colore = df_db[(df_db["Produttore/Fornitore"].str.contains(f_forn, case=False, na=False)) & 
-                              (df_db["Descrizione"] == f_desc)]
-        col_unici = filtro_colore["Codice Colore"].dropna().unique().tolist()
-        color_options.extend(sorted(col_unici))
-    color_options.append("ALTRO (Scrittura Libera)")
+        ocr_desc = st.session_state.temp.get("desc", "")
+        scelta_desc = st.selectbox("📝 DESCRIZIONE", options=desc_options)
 
-    ocr_colore = st.session_state.temp.get("colore", "")
-    
-    # Layout a colonne per il resto
-    c1, c2 = st.columns(2)
-    scelta_col = c1.selectbox("🎨 CODICE COLORE", options=color_options)
-    if scelta_col == "ALTRO (Scrittura Libera)":
-        f_col = c1.text_input("Scrivi Codice Colore", value=ocr_colore)
-    else:
-        f_col = scelta_col if scelta_col != "Seleziona..." else ""
+        if scelta_desc == "ALTRO (Scrittura Libera)":
+            f_desc = st.text_input("Scrivi Descrizione", value=ocr_desc)
+        else:
+            f_desc = scelta_desc if scelta_desc != "Seleziona..." else ""
 
-    f_spess = c2.number_input("📏 SPESSORE DICHIARATO", value=float(st.session_state.temp.get("spessore", 0.0)), format="%.2f")
-    
-    c3, c4 = st.columns(2)
-    f_peso = c3.number_input("⚖️ PESO (KG)", value=int(st.session_state.temp.get("peso", 0)))
-    f_mq = c4.number_input("📐 METRI QUADRI", value=float(st.session_state.temp.get("mq", 0.0)), format="%.2f")
+        # 4. Colore
+        color_options = ["Seleziona..."]
+        if f_forn and f_desc and not df_db.empty:
+            filtro_colore = df_db[(df_db["Produttore/Fornitore"].str.contains(f_forn, case=False, na=False)) & 
+                                  (df_db["Descrizione"] == f_desc)]
+            col_unici = filtro_colore["Codice Colore"].dropna().unique().tolist()
+            color_options.extend(sorted(col_unici))
+        color_options.append("ALTRO (Scrittura Libera)")
 
-    c5, c6 = st.columns(2)
-    f_data = c5.date_input("📅 DATA ARRIVO", datetime.now())
-    f_linea = c6.selectbox("🏗️ LINEA", ["1", "2"])
+        ocr_colore = st.session_state.temp.get("colore", "")
+        
+        c1, c2 = st.columns(2)
+        scelta_col = c1.selectbox("🎨 CODICE COLORE", options=color_options)
+        if scelta_col == "ALTRO (Scrittura Libera)":
+            f_col = c1.text_input("Scrivi Codice Colore", value=ocr_colore)
+        else:
+            f_col = scelta_col if scelta_col != "Seleziona..." else ""
 
-    f_term = st.selectbox("🏁 TERMINATO", [" ", "NO", "SI"])
+        f_spess = c2.number_input("📏 SPESSORE DICHIARATO", value=float(st.session_state.temp.get("spessore", 0.0)), format="%.2f")
+        
+        c3, c4 = st.columns(2)
+        f_peso = c3.number_input("⚖️ PESO (KG)", value=int(st.session_state.temp.get("peso", 0)))
+        f_mq = c4.number_input("📐 METRI QUADRI", value=float(st.session_state.temp.get("mq", 0.0)), format="%.2f")
 
-    if st.button("🚀 REGISTRA MATERIALE"):
-        st.session_state.archivio.append({
-            "Codice a barre": f_barcode, "Produttore/Fornitore": f_forn,
-            "Spessore dichiarato": f_spess, "Arrivo": f_data.strftime("%d/%m/%Y"),
-            "Descrizione": f_desc, "Codice Colore": f_col,
-            "Peso": f_peso, "Metri Quadri": f_mq, "Terminato": f_term, "Linea": f_linea
-        })
-        st.session_state.temp = {} # Pulisce i dati OCR temporanei
-        st.success("✅ Salvato con successo!")
-        st.rerun()
+        c5, c6 = st.columns(2)
+        f_data = c5.date_input("📅 DATA ARRIVO", datetime.now())
+        f_linea = c6.selectbox("🏗️ LINEA", ["1", "2"])
+
+        f_term = st.selectbox("🏁 TERMINATO", [" ", "NO", "SI"])
+
+        if st.button("🚀 REGISTRA MATERIALE"):
+            st.session_state.archivio.append({
+                "Codice a barre": f_barcode, "Produttore/Fornitore": f_forn,
+                "Spessore dichiarato": f_spess, "Arrivo": f_data.strftime("%d/%m/%Y"),
+                "Descrizione": f_desc, "Codice Colore": f_col,
+                "Peso": f_peso, "Metri Quadri": f_mq, "Terminato": f_term, "Linea": f_linea
+            })
+            st.session_state.temp = {}
+            st.success("✅ Salvato con successo!")
+            st.rerun()
 
 with tab2:
     st.markdown("### 🔍 RICERCA E FILTRI")
