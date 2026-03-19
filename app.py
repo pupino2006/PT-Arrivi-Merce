@@ -42,7 +42,7 @@ FORNITORI_MAP = {
 }
 
 # --- 1. CONFIGURAZIONE E DESIGN ---
-st.set_page_config(page_title="Arrivi Merce PT", layout="wide", page_icon="ptsimbolo.png")
+st.set_page_config(page_title="Arrivi Merce PT", layout="centered", page_icon="ptsimbolo.png")
 
 st.markdown("""
     <style>
@@ -78,26 +78,6 @@ st.markdown("""
         border-radius: 20px !important;
     }
     
-    /* FOTOCAMERA A SCHERMO PIENO */
-    div[data-testid="stCameraInput"] {
-        width: 100% !important;
-        max-width: 100% !important;
-    }
-    div[data-testid="stCameraInput"] video {
-        width: 100% !important;
-        height: auto !important;
-        max-height: 80vh !important;
-        object-fit: cover !important;
-    }
-    div[data-testid="stCameraInput"] button {
-        width: 100% !important;
-        height: 60px !important;
-        font-size: 18px !important;
-    }
-    div[data-testid="stCameraInput"] div:first-child {
-        width: 100% !important;
-        max-width: 100% !important;
-    }
     </style>
     """, unsafe_allow_html=True)
 
