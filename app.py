@@ -51,7 +51,20 @@ FORNITORI_MAP = {
 }
 
 # --- 1. CONFIGURAZIONE E DESIGN ---
-st.set_page_config(page_title="Arrivi Merce PT", layout="centered", page_icon="ptsimbolo.png")
+st.set_page_config(page_title="Arrivi Merce PT", layout="centered", page_icon="🏭")
+
+# Logo nella sidebar
+st.markdown("""
+    <style>
+    [data-testid="stSidebar"] {
+        background-color: #0b0f1a;
+    }
+    </style>
+    """, unsafe_allow_html=True)
+
+with st.sidebar:
+    st.image("ptsimbolo.png", width=150)
+    st.markdown("### 📦 Arrivi Merce PT")
 
 st.markdown("""
     <style>
@@ -299,6 +312,10 @@ def estrai_tutti_i_dati(testo, mostra_debug=False):
 # --- 3. PASSWORD ---
 if "auth" not in st.session_state: st.session_state.auth = False
 if not st.session_state.auth:
+    # Logo e titolo login
+    col_login1, col_login2, col_login3 = st.columns([1, 2, 1])
+    with col_login2:
+        st.image("pt.png", width=120)
     st.markdown("<h1 style='text-align: center;'>🔐 ACCESSO SB</h1>", unsafe_allow_html=True)
     pwd = st.text_input("Inserisci Password", type="password")
     if st.button("ENTRA"):
@@ -313,7 +330,12 @@ if 'archivio' not in st.session_state: st.session_state.archivio = []
 if 'temp' not in st.session_state: st.session_state.temp = {}
 if 'show_scan' not in st.session_state: st.session_state.show_scan = False
 
-st.markdown("<h2 class='orange-text'>Arrivi Merce PT</h2>", unsafe_allow_html=True)
+# Logo principale
+col_logo, col_title = st.columns([1, 4])
+with col_logo:
+    st.image("pt.png", width=80)
+with col_title:
+    st.markdown("<h2 class='orange-text'>Arrivi Merce PT</h2>", unsafe_allow_html=True)
 
 tab1, tab2 = st.tabs(["📝 REGISTRA CARICO", "📦 ARCHIVIO"])
 
@@ -379,45 +401,61 @@ with tab1:
                 barcode_mancanti = [i for i, et in enumerate(st.session_state.etichette_lotto) if not et["barcode"]]
                 
                 if barcode_mancanti:
-                    st.warning(f"⚠️ {len(barcode_mancanti)} etichette senza barcode rilevato. Serve scansione manuale.")
-                    
                     # Scanner per barcode mancanti
                     if 'idx_scan_corrente' not in st.session_state:
                         st.session_state.idx_scan_corrente = 0
                     
                     idx_corrente = barcode_mancanti[st.session_state.get('idx_scan_corrente', 0)]
                     
+                    # Mostra quale barcode scansionare
+                    st.markdown(f"#### 📷 Scansiona barcode per etichetta {idx_corrente + 1}")
+                    
+                    # Pulsanti per navigazione
+                    col_scan1, col_scan2 = st.columns([2, 1])
+                    with col_scan1:
+                        if st.button("🔴 ATTIVA SCANNER BARCODE", key=f"btn_scan_{idx_corrente}"):
+                            st.session_state.show_scan = True
+                    with col_scan2:
+                        if len(barcode_mancanti) > 1:
+                            next_idx = (st.session_state.get('idx_scan_corrente', 0) + 1) % len(barcode_mancanti)
+                            if st.button("⏭️ SUCCESSIVA", key=f"btn_next_{idx_corrente}"):
+                                st.session_state.idx_scan_corrente = next_idx
+                                st.rerun()
+                    
+                    # Mostra scanner se attivato (fuori dall'expander per maggiore visibilità)
                     if st.session_state.show_scan:
+                        st.markdown("---")
+                        st.markdown("**📷 Inquadra il barcode:**")
+                        
+                        # Metodo 1: Camera input integrata di Streamlit
+                        camera_img = st.camera_input("📷 Fotocamera", key=f"camera_{idx_corrente}")
+                        if camera_img:
+                            st.info("📸 Foto acquisita! Inserisci manualmente il barcode sotto.")
+                        
+                        # Metodo 2: QR Scanner
+                        st.markdown("**oppure usa scanner QR:**")
                         val = qrcode_scanner(key=f'scan_{idx_corrente}')
                         if val:
                             st.session_state.etichette_lotto[idx_corrente]["barcode"] = val
                             st.session_state.etichette_lotto[idx_corrente]["manuale"] = True
                             st.session_state.show_scan = False
+                            st.success(f"✅ Barcode rilevato per etichetta {idx_corrente + 1}")
                             st.rerun()
-                        st.button("CHIUDI SCANNER", on_click=lambda: st.session_state.update({"show_scan": False}))
-                    
-                    # Mostra quale barcode scansionare
-                    st.markdown(f"#### 📷 Scansiona barcode per etichetta {idx_corrente + 1}")
-                    col_scan1, col_scan2 = st.columns([3, 1])
-                    with col_scan1:
-                        if st.button("🔴 ATTIVA SCANNER BARCODE"):
-                            st.session_state.show_scan = True
+                        
+                        if st.button("✅ FATTO", key=f"close_scan_{idx_corrente}"):
+                            st.session_state.show_scan = False
                             st.rerun()
-                    with col_scan2:
-                        # Passa all'etichetta successiva se ce ne sono altre
-                        if len(barcode_mancanti) > 1:
-                            next_idx = (st.session_state.get('idx_scan_corrente', 0) + 1) % len(barcode_mancanti)
-                            if st.button("⏭️ SUCCESSIVA"):
-                                st.session_state.idx_scan_corrente = next_idx
-                                st.rerun()
+                        st.markdown("---")
                     
-                    # Possibilità di inserire manualmente il barcode
+                    # Inserimento manuale
+                    st.markdown("**Inserimento manuale:**")
                     col_manual1, col_manual2 = st.columns([3, 1])
-                    barcode_manuale = col_manual1.text_input(f"Inserisci manualmente barcode etichetta {idx_corrente + 1}", key=f"manual_barcode_{idx_corrente}")
+                    barcode_manuale = col_manual1.text_input(f"Barcode etichetta {idx_corrente + 1}", key=f"manual_barcode_{idx_corrente}", placeholder="Inserisci il codice a barre")
                     if col_manual2.button("✅ CONFERMA", key=f"confirm_barcode_{idx_corrente}"):
                         if barcode_manuale:
                             st.session_state.etichette_lotto[idx_corrente]["barcode"] = barcode_manuale
                             st.session_state.etichette_lotto[idx_corrente]["manuale"] = True
+                            st.success(f"✅ Barcode aggiunto per etichetta {idx_corrente + 1}")
                             st.rerun()
                 
                 # Link per pulire e ricominciare
@@ -433,12 +471,23 @@ with tab1:
 
     # SCANNER BARCODE LIVE (per uso singolo se necessario)
     if st.session_state.show_scan:
-        val = qrcode_scanner(key='live_scan')
-        if val:
-            st.session_state.temp["barcode"] = val
+        # Prova prima con st.camera_input (più affidabile)
+        camera_img = st.camera_input("📷 Inquadra il barcode", key="camera_live")
+        if camera_img:
+            # Salva l'immagine per elaborazione
+            st.session_state.temp["camera_image"] = camera_img.getvalue()
+        
+        # Mostra anche QR scanner come alternativa
+        with st.expander("oppure usa scanner QR"):
+            val = qrcode_scanner(key='live_scan')
+            if val:
+                st.session_state.temp["barcode"] = val
+                st.session_state.show_scan = False
+                st.rerun()
+        
+        if st.button("CHIUDI SCANNER"):
             st.session_state.show_scan = False
             st.rerun()
-        st.button("CHIUDI SCANNER", on_click=lambda: st.session_state.update({"show_scan": False}))
 
     # MODULO DATI COMUNI (solo se ci sono etichette caricate)
     if 'etichette_lotto' in st.session_state and st.session_state.etichette_lotto:
@@ -513,28 +562,32 @@ with tab1:
 
         f_term = st.selectbox("🏁 TERMINATO", [" ", "NO", "SI"], key="lotto_term")
 
-        # Verifica che tutti i barcode siano presenti + validazione dati
+        # Verifica barcode mancanti per warning
         barcode_mancanti = [i+1 for i, et in enumerate(st.session_state.etichette_lotto) if not et["barcode"]]
         
-        # Validazione dati lotto
-        errori_lotto = []
+        # Mostra avviso se ci sono barcode mancanti (ma il pulsante rimane visibile)
         if barcode_mancanti:
-            errori_lotto.append(f"⚠️ Barcode mancanti per etichette: {barcode_mancanti}")
-        if not f_forn or f_forn.strip() == "" or f_forn == "Seleziona...":
-            errori_lotto.append("⚠️ Fornitore mancante")
-        if not f_desc or f_desc.strip() == "" or f_desc == "Seleziona...":
-            errori_lotto.append("⚠️ Descrizione mancante")
-        if f_spess <= 0:
-            errori_lotto.append("⚠️ Spessore deve essere maggiore di 0")
-        if f_peso <= 0:
-            errori_lotto.append("⚠️ Peso deve essere maggiore di 0")
-        if f_mq <= 0:
-            errori_lotto.append("⚠️ Metri quadri devono essere maggiori di 0")
+            st.warning(f"⚠️ Attenzione: {len(barcode_mancanti)} etichette senza barcode ({barcode_mancanti}). Puoi comunque salvare.")
         
+        # Validazione dati obbligatori
+        errori_lotto = []
+        if not f_forn or f_forn.strip() == "" or f_forn == "Seleziona...":
+            errori_lotto.append("Fornitore")
+        if not f_desc or f_desc.strip() == "" or f_desc == "Seleziona...":
+            errori_lotto.append("Descrizione")
+        if f_spess <= 0:
+            errori_lotto.append("Spessore")
+        if f_peso <= 0:
+            errori_lotto.append("Peso")
+        if f_mq <= 0:
+            errori_lotto.append("MQ")
+        
+        # Mostra errori se presenti
         if errori_lotto:
-            for err in errori_lotto:
-                st.error(err)
-        elif st.button(f"🚀 REGISTRA {len(st.session_state.etichette_lotto)} ETICHETTE"):
+            st.error(f"⚠️ Campi obbligatori mancanti: {', '.join(errori_lotto)}")
+        
+        # Il pulsante SALVA è sempre visibile
+        if st.button(f"🚀 REGISTRA {len(st.session_state.etichette_lotto)} ETICHETTE"):
             # Crea una riga per ogni etichetta
             for et in st.session_state.etichette_lotto:
                 st.session_state.archivio.append({
