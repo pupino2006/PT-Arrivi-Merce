@@ -392,10 +392,40 @@ with tab1:
             if st.session_state.etichette_lotto:
                 st.markdown("### 📋 Riepilogo Etichette Analizzate")
                 
-                # Mostra tabella riepilogativa
+                # Mostra tabella riepilogativa con campi modificabili per peso e MQ
+                st.markdown("**Inserisci peso e MQ per ogni etichetta:**")
+                
                 for i, et in enumerate(st.session_state.etichette_lotto):
                     status_icon = "✅" if et["barcode"] else "⚠️"
-                    st.markdown(f"**{status_icon} Etichetta {i+1}** ({et['filename']}) - Barcode: `{et['barcode'] or 'NON RILEVATO'}`")
+                    with st.expander(f"{status_icon} Etichetta {i+1}: {et['filename']} - Barcode: `{et['barcode'] or 'NON RILEVATO'}`"):
+                        # Campi modificabili per ogni etichetta
+                        c1, c2 = st.columns(2)
+                        
+                        # Peso singolo
+                        peso_attuale = st.session_state.etichette_lotto[i].get("peso", 0)
+                        with c1:
+                            nuovo_peso = st.number_input(f"Peso (KG) - Etichetta {i+1}", 
+                                                        value=int(peso_attuale) if peso_attuale > 0 else 0, 
+                                                        min_value=0, step=1,
+                                                        key=f"peso_{i}")
+                            st.session_state.etichette_lotto[i]["peso"] = nuovo_peso
+                        
+                        # MQ singoli
+                        mq_attuale = st.session_state.etichette_lotto[i].get("mq", 0.0)
+                        with c2:
+                            nuovi_mq = st.number_input(f"MQ - Etichetta {i+1}", 
+                                                       value=float(mq_attuale) if mq_attuale > 0 else 0.0, 
+                                                       min_value=0.0, step=0.1,
+                                                       key=f"mq_{i}")
+                            st.session_state.etichette_lotto[i]["mq"] = nuovi_mq
+                        
+                        # Spessore
+                        spess_attuale = st.session_state.etichette_lotto[i].get("spessore", 0.0)
+                        nuovo_spess = st.number_input(f"Spessore (mm) - Etichetta {i+1}", 
+                                                     value=float(spess_attuale) if spess_attuale > 0 else 0.0, 
+                                                     min_value=0.0, step=0.01,
+                                                     key=f"spess_{i}")
+                        st.session_state.etichette_lotto[i]["spessore"] = nuovo_spess
                 
                 # Se ci sono barcode non rilevati, offre la possibilità di scansionarli
                 barcode_mancanti = [i for i, et in enumerate(st.session_state.etichette_lotto) if not et["barcode"]]
@@ -569,36 +599,37 @@ with tab1:
         if barcode_mancanti:
             st.warning(f"⚠️ Attenzione: {len(barcode_mancanti)} etichette senza barcode ({barcode_mancanti}). Puoi comunque salvare.")
         
-        # Validazione dati obbligatori
+        # Validazione dati obbligatori (solo campi comuni - peso/MQ possono essere individuali)
         errori_lotto = []
         if not f_forn or f_forn.strip() == "" or f_forn == "Seleziona...":
             errori_lotto.append("Fornitore")
         if not f_desc or f_desc.strip() == "" or f_desc == "Seleziona...":
             errori_lotto.append("Descrizione")
-        if f_spess <= 0:
-            errori_lotto.append("Spessore")
-        if f_peso <= 0:
-            errori_lotto.append("Peso")
-        if f_mq <= 0:
-            errori_lotto.append("MQ")
+        # Nota: peso e MQ sono opzionali nel form comune perché possono essere inseriti per ogni etichetta
         
         # Mostra errori se presenti
         if errori_lotto:
             st.error(f"⚠️ Campi obbligatori mancanti: {', '.join(errori_lotto)}")
         
         # Il pulsante SALVA è sempre visibile
-        if st.button(f"🚀 REGISTRA {len(st.session_state.etichette_lotto)} ETICHETTE"):
-            # Crea una riga per ogni etichetta
+        num_etichette = len(st.session_state.etichette_lotto)
+        if st.button(f"🚀 REGISTRA {num_etichette} ETICHETTE"):
+            # Crea una riga per ogni etichetta - usa i valori individuali di ciascuna
             for et in st.session_state.etichette_lotto:
+                # Usa i valori individuali se presenti, altrimenti usa quelli comuni del form
+                peso_singolo = et.get("peso", f_peso) if et.get("peso", 0) > 0 else f_peso
+                mq_singolo = et.get("mq", f_mq) if et.get("mq", 0) > 0 else f_mq
+                spess_singolo = et.get("spessore", f_spess) if et.get("spessore", 0) > 0 else f_spess
+                
                 st.session_state.archivio.append({
                     "Codice a barre": et["barcode"],
                     "Produttore/Fornitore": f_forn,
-                    "Spessore dichiarato": f_spess,
+                    "Spessore dichiarato": spess_singolo,
                     "Arrivo": f_data.strftime("%d/%m/%Y"),
                     "Descrizione": f_desc,
                     "Codice Colore": f_col,
-                    "Peso": f_peso,
-                    "Metri Quadri": f_mq,
+                    "Peso": peso_singolo,
+                    "Metri Quadri": mq_singolo,
                     "Terminato": f_term,
                     "Linea": f_linea
                 })
@@ -607,7 +638,7 @@ with tab1:
             st.session_state.etichette_lotto = []
             st.session_state.idx_scan_corrente = 0
             
-            st.success(f"✅ Salvate {len(st.session_state.archivio)} etichette nell'archivio!")
+            st.success(f"✅ Salvate {num_etichette} etichette nell'archivio!")
             st.rerun()
     
     elif 'etichette_lotto' not in st.session_state or not st.session_state.etichette_lotto:
