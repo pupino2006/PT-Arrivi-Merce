@@ -14,7 +14,16 @@ import easyocr
 # Inizializza EasyOCR (caricato una sola volta in cache)
 @st.cache_resource
 def get_easyocr_reader():
-    return easyocr.Reader(['it', 'en'], gpu=True)
+    return easyocr.Reader(['it', 'en'], gpu=False)  # GPU=False per maggiore compatibilità
+
+# Cache per risultati OCR (evita rianalisi)
+@st.cache_data(ttl=3600)
+def analizza_etichetta_cached(file_name, file_bytes, ocr_engine):
+    """Cache per evitare rianalisi delle stesse immagini"""
+    if ocr_engine == "Google Vision API":
+        return analizza_etichetta_google(file_bytes)
+    else:
+        return analizza_etichetta_easyocr(file_bytes)
 
 # Dizionario fornitori per matching fuzzy
 FORNITORI_MAP = {
@@ -51,18 +60,23 @@ st.markdown("""
     header { visibility: hidden; }
     h1, h2, h3, label, p, .stMarkdown { color: #f8fafc !important; font-weight: 800 !important; }
     
-    /* INPUT FIELDS */
+    /* INPUT FIELDS - Migliorati */
     .stTextInput input, .stNumberInput input, .stSelectbox div[data-baseweb="select"], .stDateInput input {
         background-color: #1e293b !important; 
         border: 1px solid #334155 !important; 
         color: #f8fafc !important; 
         border-radius: 12px !important;
         height: 50px !important;
+        transition: all 0.3s ease !important;
+    }
+    .stTextInput input:focus, .stNumberInput input:focus, .stSelectbox div[data-baseweb="select"]:focus-within {
+        border-color: #f97316 !important;
+        box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.2) !important;
     }
 
     /* BOTTONE ARANCIONE */
     div.stButton > button, div.stFormSubmitButton > button {
-        background: #f97316 !important; 
+        background: linear-gradient(135deg, #f97316 0%, #ea580c 100%) !important; 
         color: white !important; 
         border-radius: 18px !important; 
         font-weight: 900 !important; 
@@ -70,14 +84,54 @@ st.markdown("""
         width: 100%; 
         height: 60px !important;
         box-shadow: 0 4px 15px rgba(249, 115, 22, 0.3) !important;
+        transition: all 0.3s ease !important;
+    }
+    div.stButton > button:hover, div.stFormSubmitButton > button:hover {
+        transform: translateY(-2px) !important;
+        box-shadow: 0 8px 25px rgba(249, 115, 22, 0.4) !important;
+    }
+    
+    /* TABS - Stile migliorato */
+    .stTabs [data-baseweb="tab-list"] {
+        gap: 10px;
+    }
+    .stTabs [data-baseweb="tab"] {
+        background-color: #1e293b;
+        border-radius: 12px 12px 0 0;
+        padding: 10px 20px;
+        font-weight: 600;
+    }
+    .stTabs [aria-selected="true"] {
+        background-color: #f97316 !important;
+        color: white !important;
     }
     
     .orange-text { color: #f97316; }
     div[data-testid="stExpander"] {
         background: rgba(30, 41, 59, 0.6) !important;
         border-radius: 20px !important;
+        border: 1px solid #334155 !important;
     }
     
+    /* METRICS - Card styling */
+    div[data-testid="stMetric"] {
+        background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+        border-radius: 16px;
+        padding: 15px;
+        border: 1px solid #334155;
+    }
+    
+    /* SUCCESS/ERROR messages */
+    .stSuccess, .stInfo, .stWarning, .stError {
+        border-radius: 12px !important;
+        padding: 15px !important;
+    }
+    
+    /* Table styling */
+    div[data-testid="stDataFrame"] {
+        border-radius: 16px;
+        overflow: hidden;
+    }
     </style>
     """, unsafe_allow_html=True)
 
@@ -459,11 +513,27 @@ with tab1:
 
         f_term = st.selectbox("🏁 TERMINATO", [" ", "NO", "SI"], key="lotto_term")
 
-        # Verifica che tutti i barcode siano presenti
+        # Verifica che tutti i barcode siano presenti + validazione dati
         barcode_mancanti = [i+1 for i, et in enumerate(st.session_state.etichette_lotto) if not et["barcode"]]
         
+        # Validazione dati lotto
+        errori_lotto = []
         if barcode_mancanti:
-            st.error(f"⚠️ Impossibile salvare: barcode mancanti per le etichette {barcode_mancanti}. Scansionare prima.")
+            errori_lotto.append(f"⚠️ Barcode mancanti per etichette: {barcode_mancanti}")
+        if not f_forn or f_forn.strip() == "" or f_forn == "Seleziona...":
+            errori_lotto.append("⚠️ Fornitore mancante")
+        if not f_desc or f_desc.strip() == "" or f_desc == "Seleziona...":
+            errori_lotto.append("⚠️ Descrizione mancante")
+        if f_spess <= 0:
+            errori_lotto.append("⚠️ Spessore deve essere maggiore di 0")
+        if f_peso <= 0:
+            errori_lotto.append("⚠️ Peso deve essere maggiore di 0")
+        if f_mq <= 0:
+            errori_lotto.append("⚠️ Metri quadri devono essere maggiori di 0")
+        
+        if errori_lotto:
+            for err in errori_lotto:
+                st.error(err)
         elif st.button(f"🚀 REGISTRA {len(st.session_state.etichette_lotto)} ETICHETTE"):
             # Crea una riga per ogni etichetta
             for et in st.session_state.etichette_lotto:
@@ -563,15 +633,34 @@ with tab1:
         f_term = st.selectbox("🏁 TERMINATO", [" ", "NO", "SI"])
 
         if st.button("🚀 REGISTRA MATERIALE"):
-            st.session_state.archivio.append({
-                "Codice a barre": f_barcode, "Produttore/Fornitore": f_forn,
-                "Spessore dichiarato": f_spess, "Arrivo": f_data.strftime("%d/%m/%Y"),
-                "Descrizione": f_desc, "Codice Colore": f_col,
-                "Peso": f_peso, "Metri Quadri": f_mq, "Terminato": f_term, "Linea": f_linea
-            })
-            st.session_state.temp = {}
-            st.success("✅ Salvato con successo!")
-            st.rerun()
+            # Valida i dati prima di salvare
+            errori = []
+            if not f_barcode or f_barcode.strip() == "":
+                errori.append("⚠️ Codice a barre mancante")
+            if not f_forn or f_forn.strip() == "" or f_forn == "Seleziona...":
+                errori.append("⚠️ Fornitore mancante")
+            if not f_desc or f_desc.strip() == "" or f_desc == "Seleziona...":
+                errori.append("⚠️ Descrizione mancante")
+            if f_spess <= 0:
+                errori.append("⚠️ Spessore deve essere maggiore di 0")
+            if f_peso <= 0:
+                errori.append("⚠️ Peso deve essere maggiore di 0")
+            if f_mq <= 0:
+                errori.append("⚠️ Metri quadri devono essere maggiori di 0")
+            
+            if errori:
+                for err in errori:
+                    st.error(err)
+            else:
+                st.session_state.archivio.append({
+                    "Codice a barre": f_barcode, "Produttore/Fornitore": f_forn,
+                    "Spessore dichiarato": f_spess, "Arrivo": f_data.strftime("%d/%m/%Y"),
+                    "Descrizione": f_desc, "Codice Colore": f_col,
+                    "Peso": f_peso, "Metri Quadri": f_mq, "Terminato": f_term, "Linea": f_linea
+                })
+                st.session_state.temp = {}
+                st.success("✅ Salvato con successo!")
+                st.rerun()
 
 with tab2:
     st.markdown("### 🔍 RICERCA E FILTRI")
@@ -614,7 +703,7 @@ with tab2:
             if filtro_colore != "Tutti":
                 df_filtrato = df_filtrato[df_filtrato["Codice Colore"] == filtro_colore]
         
-        # Mostra statistiche
+        # Mostra statistiche avanzate
         st.markdown("#### 📊 Statistiche")
         c_stat1, c_stat2, c_stat3, c_stat4 = st.columns(4)
         with c_stat1:
@@ -626,14 +715,51 @@ with tab2:
         with c_stat4:
             st.metric("🏭 Fornitori", df_filtrato["Produttore/Fornitore"].nunique() if "Produttore/Fornitore" in df_filtrato else 0)
         
+        # Statistiche aggiuntive
+        c_stat5, c_stat6, c_stat7 = st.columns(3)
+        with c_stat5:
+            avg_peso = df_filtrato['Peso'].mean() if "Peso" in df_filtrato and len(df_filtrato) > 0 else 0
+            st.metric("⚖️ Peso Medio (KG)", f"{avg_peso:.0f}")
+        with c_stat6:
+            avg_mq = df_filtrato['Metri Quadri'].mean() if "Metri Quadri" in df_filtrato and len(df_filtrato) > 0 else 0
+            st.metric("📐 MQ Medi", f"{avg_mq:.1f}")
+        with c_stat7:
+            terminati = len(df_filtrato[df_filtrato.get("Terminato", "") == "SI"]) if "Terminato" in df_filtrato else 0
+            st.metric("✅ Terminati", terminati)
+        
         # Tabella dati filtrati
         st.dataframe(df_filtrato, use_container_width=True, hide_index=True)
         
-        # Esportazione
+        # Esportazione Excel avanzata con formattazione
         out = BytesIO()
         with pd.ExcelWriter(out, engine='xlsxwriter') as wr:
-            df_filtrato.to_excel(wr, index=False)
-        st.download_button("📥 SCARICA EXCEL FILTRATO", out.getvalue(), "archivio_carichi_filtrato.xlsx")
+            df_filtrato.to_excel(wr, index=False, sheet_name='Carichi')
+            
+            # Formattazione
+            workbook = wr.book
+            worksheet = wr.sheets['Carichi']
+            
+            # Formato header
+            header_format = workbook.add_format({
+                'bold': True,
+                'bg_color': '#f97316',
+                'font_color': 'white',
+                'border': 1
+            })
+            
+            # Formato celle
+            cell_format = workbook.add_format({'border': 1})
+            
+            # Applica header
+            for col_num, value in enumerate(df_filtrato.columns.values):
+                worksheet.write(0, col_num, value, header_format)
+            
+            # Larghezza colonne automatica
+            for i, col in enumerate(df_filtrato.columns):
+                max_len = max(df_filtrato[col].astype(str).map(len).max(), len(col)) + 2
+                worksheet.set_column(i, i, min(max_len, 40))
+        
+        st.download_button("📥 SCARICA EXCEL FILTRATO", out.getvalue(), "archivio_carichi_filtrato.xlsx", type="primary")
         
         # Azioni
         c_az1, c_az2 = st.columns(2)

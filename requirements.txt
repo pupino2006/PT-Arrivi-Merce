@@ -3,7 +3,7 @@ pandas
 google-cloud-vision
 Pillow
 xlsxwriter
-streamlit-qrcode-scanner
+streamlit-qrcode-scanner==0.1.2
 easyocr
 altair==6.0.0
 attrs==25.4.0
