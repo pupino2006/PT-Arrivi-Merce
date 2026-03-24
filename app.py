@@ -91,25 +91,32 @@ if check_password():
             response = client.text_detection(image=image)
             return response.text_annotations[0].description if response.text_annotations else ""
         except Exception as e:
-            st.error(f"Errore Google Vision: {e}")
             return ""
 
     def estrai_dati_chirurgica(testo_ocr):
         """Estrae dati dall'OCR delle foto - CODICE, MQ e PESO"""
+        if not testo_ocr:
+            return {
+                "barcode": "", "fornitore": "", "spessore": 0.0,
+                "peso": 0, "larghezza": 0, "lunghezza": 0.0,
+                "mq": 0.0, "codice": "", "data_etichetta": "",
+                "codice_colore": "", "descrizione": ""
+            }
+        
         righe = [r.strip().upper() for r in testo_ocr.split('\n') if r.strip()]
         t_completo = " ".join(righe)
         dati = {
-            "barcode": "Non trovato", 
-            "fornitore": "Sconosciuto", 
+            "barcode": "", 
+            "fornitore": "", 
             "spessore": 0.0,
             "peso": 0, 
             "larghezza": 0, 
             "lunghezza": 0.0,
-            "mq": 0.0,  # Metri quadrati calcolati
-            "codice": "",  # Codice articolo se trovato
-            "data_etichetta": datetime.now().strftime("%d/%m/%Y"),
+            "mq": 0.0,
+            "codice": "",
+            "data_etichetta": "",
             "codice_colore": "", 
-            "descrizione": "Verificare materiale"
+            "descrizione": ""
         }
         
         # Identificazione Fornitore
@@ -161,7 +168,7 @@ if check_password():
                     if 500 < int(p) < 8000 and int(p) != dati["larghezza"]: 
                         dati["peso"] = int(p)
             
-            # MQ (metri quadrati) - cerco direttamente "MQ" o calcolo da larghezza x lunghezza
+            # MQ (metri quadrati)
             if "MQ" in riga or "M2" in riga or "M²" in riga:
                 cerca_in = riga + " " + (righe[i+1] if i+1 < len(righe) else "")
                 val_mq = re.search(r'(\d+[.,]\d{1,3})', cerca_in)
@@ -185,7 +192,6 @@ if check_password():
         <style>
         .stButton>button { width: 100%; border-radius: 12px; height: 3.5em; background-color: #004a99; color: white; font-weight: bold; }
         .stDownloadButton>button { background-color: #28a745 !important; border-radius: 12px; }
-        .stCameraInput>div>button { background-color: #004a99 !important; color: white !important; }
         .success-box { background-color: #d4edda; padding: 15px; border-radius: 8px; border-left: 4px solid #28a745; }
         .warning-box { background-color: #fff3cd; padding: 15px; border-radius: 8px; border-left: 4px solid #ffc107; }
         </style>
@@ -200,73 +206,50 @@ if check_password():
     st.subheader("Carico Arrivi Intelligente")
 
     # Inizializza stati sessione
-    if 'session_data' not in st.session_state:
-        st.session_state.session_data = []
     if 'foto_caricate' not in st.session_state:
         st.session_state.foto_caricate = []
     if 'dati_analizzati' not in st.session_state:
         st.session_state.dati_analizzati = []
-    if 'step_corrente' not in st.session_state:
-        st.session_state.step_corrente = 1  # 1=caricamento, 2=campi comuni, 3=campi singoli, 4=conferma
-    if 'campi_comuni' not in st.session_state:
-        st.session_state.campi_comuni = {}
-    if 'foto_index' not in st.session_state:
-        st.session_state.foto_index = 0
+    if 'session_data' not in st.session_state:
+        st.session_state.session_data = []
 
-    # ===== STEP 1: CARICAMENTO FOTO =====
+    # ===== SEZIONE 1: CARICAMENTO FOTO =====
     st.divider()
-    st.markdown("### 📸 Step 1: Carica le Foto delle Etichette")
-    st.caption("Carica una o più foto delle etichette. L'analisi partirà automaticamente.")
-
-    # Opzioni di caricamento
-    col1, col2 = st.columns(2)
-    with col1:
-        camera_img = st.camera_input("📷 Scatta Foto")
-    with col2:
-        uploaded_files = st.file_uploader("📁 Oppure scegli dalla Galleria", 
-                                           type=['jpg', 'jpeg', 'png'], 
-                                           accept_multiple_files=True)
-
-    foto_da_aggiungere = []
+    st.markdown("### 📸 Carica le Foto delle Etichette")
+    st.caption("Carica una o più foto per analizzarle automaticamente. Puoi anche inserire i dati manualmente.")
     
-    # Aggiungi foto dalla camera
-    if camera_img:
-        foto_da_aggiungere.append({
-            'file': camera_img,
-            'bytes': camera_img.getvalue(),
-            'nome': f"Foto_{len(st.session_state.foto_caricate) + len(foto_da_aggiungere) + 1}.jpg"
-        })
-    
+    # Caricamento file dalla galleria (NO camera per compatibilità cloud)
+    uploaded_files = st.file_uploader("📁 Seleziona foto dalla galleria", 
+                                       type=['jpg', 'jpeg', 'png'], 
+                                       accept_multiple_files=True,
+                                       label_visibility="collapsed")
+
     # Aggiungi foto dalla galleria
     if uploaded_files:
-        for f in uploaded_files:
-            # Evita duplicati
-            if not any(pf['nome'] == f.name for pf in st.session_state.foto_caricate):
-                foto_da_aggiungere.append({
-                    'file': f,
-                    'bytes': f.getvalue(),
-                    'nome': f.name
-                })
-
-    # Mostra foto caricate e analizza automaticamente
-    if foto_da_aggiungere:
         with st.spinner("🔄 Analisi in corso..."):
-            for foto in foto_da_aggiungere:
-                # Analizza con Google Vision
-                testo_ocr = analizza_con_google(foto['bytes'])
-                dati = estrai_dati_chirurgica(testo_ocr)
-                dati['testo_ocr'] = testo_ocr
-                dati['nome_foto'] = foto['nome']
-                
-                st.session_state.foto_caricate.append(foto)
-                st.session_state.dati_analizzati.append(dati)
+            for f in uploaded_files:
+                # Evita duplicati
+                if not any(pf['nome'] == f.name for pf in st.session_state.foto_caricate):
+                    bytes_data = f.getvalue()
+                    testo_ocr = analizza_con_google(bytes_data)
+                    dati = estrai_dati_chirurgica(testo_ocr)
+                    dati['testo_ocr'] = testo_ocr
+                    dati['nome_foto'] = f.name
+                    
+                    st.session_state.foto_caricate.append({
+                        'file': f,
+                        'bytes': bytes_data,
+                        'nome': f.name
+                    })
+                    st.session_state.dati_analizzati.append(dati)
         
-        st.success(f"✅ {len(foto_da_aggiungere)} foto analizzata/e con successo!")
+        if uploaded_files:
+            st.success(f"✅ {len(uploaded_files)} foto analizzata/e!")
         st.rerun()
 
-    # Mostra foto già caricate
+    # Mostra foto caricate
     if st.session_state.foto_caricate:
-        st.markdown("#### Foto Caricate:")
+        st.markdown("#### 📷 Foto Caricate:")
         
         # Crea griglia per visualizzare le foto
         cols = st.columns(min(4, len(st.session_state.foto_caricate)))
@@ -276,196 +259,179 @@ if check_password():
                 
                 # Mostra preview dati trovati
                 with st.expander("📋 Dati trovati"):
-                    if dati['codice']:
+                    if dati.get('codice'):
                         st.write(f"**Codice:** {dati['codice']}")
-                    if dati['peso']:
+                    else:
+                        st.write("**Codice:** Non trovato")
+                    if dati.get('peso'):
                         st.write(f"**Peso:** {dati['peso']} kg")
-                    if dati['mq']:
+                    else:
+                        st.write("**Peso:** Non trovato")
+                    if dati.get('mq'):
                         st.write(f"**MQ:** {dati['mq']:.2f}")
-                    if dati['barcode'] != "Non trovato":
+                    else:
+                        st.write("**MQ:** Non trovato")
+                    if dati.get('barcode'):
                         st.write(f"**Barcode:** {dati['barcode']}")
         
-        # Pulsante per rimuovere tutte e ricominciare
-        if st.button("🗑️ Rimuovi Tutte e Ricomincia"):
+        # Pulsante per rimuovere tutte
+        if st.button("🗑️ Rimuovi Tutte le Foto"):
             st.session_state.foto_caricate = []
             st.session_state.dati_analizzati = []
-            st.session_state.step_corrente = 1
-            st.session_state.campi_comuni = {}
-            st.session_state.foto_index = 0
             st.rerun()
 
-    # ===== STEP 2: CAMPI COMUNI =====
-    if st.session_state.foto_caricate and st.session_state.step_corrente >= 2:
-        st.divider()
-        st.markdown("### 📝 Step 2: Dati Comuni a Tutti i Colli")
-        st.caption("Inserisci i dati che sono validi per tutte le foto caricate.")
-        
-        # Recupera fornitore più comune dai dati analizzati
-        fornitori = [d['fornitore'] for d in st.session_state.dati_analizzati]
-        fornitore_suggerito = max(set(fornitori), key=fornitori.count) if fornitori else "Sconosciuto"
-        
-        # Recupera data più comune
-        date = [d['data_etichetta'] for d in st.session_state.dati_analizzati]
-        data_suggerita = max(set(date), key=date.count) if date else datetime.now().strftime("%d/%m/%Y")
+    # ===== SEZIONE 2: DATI COMUNI =====
+    st.divider()
+    st.markdown("### 📝 Dati Comuni a Tutti i Colli")
+    
+    col1, col2 = st.columns(2)
+    with col1:
+        fornitore = st.selectbox("🏭 Fornitore:", 
+                                 ["", "LAMPRE", "MARCEGAGLIA", "ARCELORMITTAL", "NOVELIS", "ALTRO", "Sconosciuto"])
+    
+    with col2:
+        data_arrivo = st.text_input("📅 Data Arrivo:", value=datetime.now().strftime("%d/%m/%Y"))
+    
+    descrizione = st.text_area("📝 Note / Descrizione:", value="")
 
-        with st.form("form_campi_comuni"):
-            col1, col2 = st.columns(2)
-            with col1:
-                fornitore = st.selectbox("🏭 Fornitore:", 
-                                         ["Sconosciuto", "LAMPRE", "MARCEGAGLIA", "ARCELORMITTAL", "NOVELIS", "ALTRO"],
-                                         index=["Sconosciuto", "LAMPRE", "MARCEGAGLIA", "ARCELORMITTAL", "NOVELIS", "ALTRO"].index(fornitore_suggerito) if fornitore_suggerito in ["Sconosciuto", "LAMPRE", "MARCEGAGLIA", "ARCELORMITTAL", "NOVELIS", "ALTRO"] else 0)
-            
-            with col2:
-                data_arrivo = st.text_input("📅 Data Arrivo:", value=datetime.now().strftime("%d/%m/%Y"))
-            
-            descrizione = st.text_area("📝 Note / Descrizione:", value="Verificare materiale")
-            
-            submitted = st.form_submit_button("✅ Continua con i Dati Singoli")
-            
-            if submitted:
-                st.session_state.campi_comuni = {
-                    'fornitore': fornitore,
-                    'data_arrivo': data_arrivo,
-                    'descrizione': descrizione
-                }
-                st.session_state.step_corrente = 3
-                st.session_state.foto_index = 0
-                st.rerun()
-
-    # ===== STEP 3: CAMPI SINGOLI PER OGNI FOTO =====
-    if st.session_state.step_corrente >= 3 and st.session_state.foto_caricate:
-        st.divider()
-        
-        idx = st.session_state.foto_index
-        foto = st.session_state.foto_caricate[idx]
+    # ===== SEZIONE 3: DATI PER OGNI COLLO =====
+    st.divider()
+    st.markdown("### 📋 Dati per ogni Collo")
+    st.caption("Compila i dati per ogni collo. I campi sono precompilati se trovati nelle foto.")
+    
+    num_colli = st.number_input("Numero di colli:", min_value=1, max_value=100, value=max(1, len(st.session_state.foto_caricate)), step=1)
+    
+    # Assicura che ci siano abbastanza dati
+    while len(st.session_state.dati_analizzati) < num_colli:
+        st.session_state.dati_analizzati.append({
+            "barcode": "", "fornitore": "", "spessore": 0.0,
+            "peso": 0, "larghezza": 0, "lunghezza": 0.0,
+            "mq": 0.0, "codice": "", "data_etichetta": "",
+            "codice_colore": "", "descrizione": "", "nome_foto": ""
+        })
+    
+    # Mostra i campi per ogni collo
+    for idx in range(num_colli):
         dati = st.session_state.dati_analizzati[idx]
+        nome_foto = dati.get('nome_foto', '') if idx < len(st.session_state.foto_caricate) else ''
         
-        totale_foto = len(st.session_state.foto_caricate)
-        st.markdown(f"### 📋 Step 3: Dati Collo {idx + 1} di {totale_foto}")
-        
-        col_img, col_form = st.columns([1, 2])
-        
-        with col_img:
-            st.image(foto['bytes'], caption=foto['nome'], width=200)
-        
-        with col_form:
-            with st.form(f"form_collo_{idx}"):
-                st.markdown("#### Inserisci i Dati per questo Collo:")
-                
+        with st.expander(f"📦 Collo {idx + 1}" + (f" - {nome_foto}" if nome_foto else "")):
+            col_a, col_b = st.columns(2)
+            
+            with col_a:
                 # Codice - proponi quello trovato dall'OCR se disponibile
-                codice_default = dati.get('codice', '') if dati.get('codice') else ""
-                codice = st.text_input("🏷️ Codice Articolo:", value=codice_default)
+                codice = st.text_input(
+                    "🏷️ Codice Articolo:", 
+                    value=dati.get('codice', ''),
+                    key=f"codice_{idx}"
+                )
                 
                 # MQ - proponi quello calcolato/trovato
                 mq_default = dati.get('mq', 0.0) if dati.get('mq', 0) > 0 else 0.0
-                mq = st.number_input("📐 Metri Quadrati (MQ):", 
-                                    min_value=0.0, 
-                                    value=mq_default if mq_default > 0 else 10.0,
-                                    step=0.5, format="%.2f")
-                
+                mq = st.number_input(
+                    "📐 Metri Quadrati (MQ):", 
+                    min_value=0.0, 
+                    value=mq_default if mq_default > 0 else 0.0,
+                    step=0.5, format="%.2f",
+                    key=f"mq_{idx}"
+                )
+            
+            with col_b:
                 # Peso - proponi quello trovato
                 peso_default = dati.get('peso', 0) if dati.get('peso', 0) > 0 else 0
-                peso = st.number_input("⚖️ Peso (KG):", 
-                                      min_value=0, 
-                                      value=peso_default if peso_default > 0 else 100,
-                                      step=10)
+                peso = st.number_input(
+                    "⚖️ Peso (KG):", 
+                    min_value=0, 
+                    value=peso_default if peso_default > 0 else 0,
+                    step=10,
+                    key=f"peso_{idx}"
+                )
                 
-                # Ulteriori dati opzionali
-                with st.expander("🔍 Dettagli Aggiuntivi (opzionali)"):
-                    barcode = st.text_input("📊 Barcode:", value=dati.get('barcode', ''))
-                    spessore = st.number_input("📏 Spessore (mm):", 
-                                               min_value=0.0, 
-                                               value=float(dati.get('spessore', 0)) if dati.get('spessore', 0) > 0 else 0.5,
-                                               step=0.1, format="%.2f")
-                    larghezza = st.number_input("↔️ Larghezza (mm):", 
-                                                min_value=0, 
-                                                value=dati.get('larghezza', 0) if dati.get('larghezza', 0) > 0 else 1000,
-                                                step=50)
-                    lunghezza = st.number_input("↕️ Lunghezza (m):", 
-                                                min_value=0.0, 
-                                                value=float(dati.get('lunghezza', 0)) if dati.get('lunghezza', 0) > 0 else 6.0,
-                                                step=0.5, format="%.2f")
+                # Barcode
+                barcode = st.text_input(
+                    "📊 Barcode:", 
+                    value=dati.get('barcode', ''),
+                    key=f"barcode_{idx}"
+                )
+            
+            # Dettagli espandibili
+            with st.expander("🔍 Dettagli Aggiuntivi"):
+                col_c, col_d = st.columns(2)
+                with col_c:
+                    spessore = st.number_input(
+                        "📏 Spessore (mm):", 
+                        min_value=0.0, 
+                        value=float(dati.get('spessore', 0)) if dati.get('spessore', 0) > 0 else 0.0,
+                        step=0.1, format="%.2f",
+                        key=f"spessore_{idx}"
+                    )
+                    larghezza = st.number_input(
+                        "↔️ Larghezza (mm):", 
+                        min_value=0, 
+                        value=dati.get('larghezza', 0) if dati.get('larghezza', 0) > 0 else 1000,
+                        step=50,
+                        key=f"larghezza_{idx}"
+                    )
                 
-                # Navigazione
-                col_prev, col_next = st.columns(2)
-                with col_prev:
-                    if idx > 0:
-                        prev_clicked = st.form_submit_button("⬅️ Precedente")
-                        if prev_clicked:
-                            # Salva i dati temporanei
-                            st.session_state.dati_analizzati[idx].update({
-                                'codice': codice,
-                                'mq': mq,
-                                'peso': peso,
-                                'barcode': barcode,
-                                'spessore': spessore,
-                                'larghezza': larghezza,
-                                'lunghezza': lunghezza
-                            })
-                            st.session_state.foto_index -= 1
-                            st.rerun()
-                
-                with col_next:
-                    if idx < totale_foto - 1:
-                        next_clicked = st.form_submit_button("Successivo ➡️")
-                        if next_clicked:
-                            # Salva i dati temporanei
-                            st.session_state.dati_analizzati[idx].update({
-                                'codice': codice,
-                                'mq': mq,
-                                'peso': peso,
-                                'barcode': barcode,
-                                'spessore': spessore,
-                                'larghezza': larghezza,
-                                'lunghezza': lunghezza
-                            })
-                            st.session_state.foto_index += 1
-                            st.rerun()
-                    else:
-                        confirm_clicked = st.form_submit_button("✅ Conferma Tutto e Salva", type="primary")
-                        if confirm_clicked:
-                            # Salva gli ultimi dati
-                            st.session_state.dati_analizzati[idx].update({
-                                'codice': codice,
-                                'mq': mq,
-                                'peso': peso,
-                                'barcode': barcode,
-                                'spessore': spessore,
-                                'larghezza': larghezza,
-                                'lunghezza': lunghezza
-                            })
-                            st.session_state.step_corrente = 4
-                            st.rerun()
+                with col_d:
+                    lunghezza = st.number_input(
+                        "↕️ Lunghezza (m):", 
+                        min_value=0.0, 
+                        value=float(dati.get('lunghezza', 0)) if dati.get('lunghezza', 0) > 0 else 0.0,
+                        step=0.5, format="%.2f",
+                        key=f"lunghezza_{idx}"
+                    )
+                    colore = st.text_input(
+                        "🎨 Codice Colore:", 
+                        value=dati.get('codice_colore', ''),
+                        key=f"colore_{idx}"
+                    )
+            
+            # Salva i dati nella sessione
+            st.session_state.dati_analizzati[idx].update({
+                'codice': codice,
+                'mq': mq,
+                'peso': peso,
+                'barcode': barcode,
+                'spessore': spessore,
+                'larghezza': larghezza,
+                'lunghezza': lunghezza,
+                'codice_colore': colore
+            })
 
-    # ===== STEP 4: RIEPILOGO E SALVATAGGIO =====
-    if st.session_state.step_corrente == 4 and st.session_state.foto_caricate:
-        st.divider()
-        st.markdown("### ✅ Step 4: Riepilogo e Salvataggio")
-        
+    # ===== SEZIONE 4: SALVA =====
+    st.divider()
+    
+    if st.button("✅ Salva e Esporta in Excel", type="primary", use_container_width=True):
         # Costruisci il DataFrame con tutti i dati
         rows = []
-        for idx, (foto, dati) in enumerate(zip(st.session_state.foto_caricate, st.session_state.dati_analizzati)):
+        for idx, dati in enumerate(st.session_state.dati_analizzati[:num_colli]):
+            foto_nome = st.session_state.foto_caricate[idx]['nome'] if idx < len(st.session_state.foto_caricate) else ''
             row = {
-                'Foto': foto['nome'],
+                'Foto': foto_nome,
                 'Codice': dati.get('codice', ''),
                 'MQ': dati.get('mq', 0),
                 'Peso (KG)': dati.get('peso', 0),
-                'Fornitore': st.session_state.campi_comuni.get('fornitore', ''),
-                'Data Arrivo': st.session_state.campi_comuni.get('data_arrivo', ''),
+                'Fornitore': fornitore,
+                'Data Arrivo': data_arrivo,
                 'Barcode': dati.get('barcode', ''),
                 'Spessore': dati.get('spessore', 0),
                 'Larghezza': dati.get('larghezza', 0),
                 'Lunghezza': dati.get('lunghezza', 0),
-                'Note': st.session_state.campi_comuni.get('descrizione', '')
+                'Colore': dati.get('codice_colore', ''),
+                'Note': descrizione
             }
             rows.append(row)
         
         df = pd.DataFrame(rows)
+        
+        # Mostra riepilogo
+        st.markdown("### ✅ Riepilogo Dati")
         st.dataframe(df, use_container_width=True)
         
         # Calcola totali
-        totale_mq = sum(r['MQ'] for r in rows)
-        totale_peso = sum(r['Peso (KG)'] for r in rows)
+        totale_mq = sum(r.get('MQ', 0) for r in rows)
+        totale_peso = sum(r.get('Peso (KG)', 0) for r in rows)
         
         st.markdown(f"""
         <div class="success-box">
@@ -483,20 +449,14 @@ if check_password():
         
         output.seek(0)
         
-        col1, col2 = st.columns(2)
-        with col1:
-            st.download_button(
-                "📥 Scarica Excel",
-                output.getvalue(),
-                file_name=f"arrivi_{datetime.now().strftime('%Y%m%d_%H%M')}.xlsx",
-                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-            )
+        st.download_button(
+            "📥 Scarica Excel",
+            output.getvalue(),
+            file_name=f"arrivi_{datetime.now().strftime('%Y%m%d_%H%M')}.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        )
         
-        with col2:
-            if st.button("🔄 Nuovo Carico", type="primary"):
-                st.session_state.foto_caricate = []
-                st.session_state.dati_analizzati = []
-                st.session_state.step_corrente = 1
-                st.session_state.campi_comuni = {}
-                st.session_state.foto_index = 0
-                st.rerun()
+        if st.button("🔄 Nuovo Carico"):
+            st.session_state.foto_caricate = []
+            st.session_state.dati_analizzati = []
+            st.rerun()
