@@ -763,7 +763,9 @@
                         'Authorization': `Bearer ${SB_KEY}`
                     }
                 });
+                console.log("📡 Risposta ricevuta:", res.status);
                 const data = await res.json();
+                console.log("📡 Dati ricevuti:", data.length, "righe");
                 
                 const fornitoriSet = new Set();
                 const descMap = {};
@@ -813,8 +815,13 @@
         }
         
         function aggiornaSelectFornitore() {
+            console.log("🔄 Aggiorna select fornitore...");
             const sel = document.getElementById('fornitore');
-            if (!sel) return;
+            if (!sel) {
+                console.log("❌ Elemento fornitore non trovato");
+                return;
+            }
+            console.log("✅ Elemento fornitore trovato, aggiorno...");
             sel.innerHTML = '<option value="">Seleziona fornitore...</option>';
             dbArrivi.fornitori.forEach(f => {
                 const opt = document.createElement('option');
@@ -822,6 +829,7 @@
                 opt.textContent = f;
                 sel.appendChild(opt);
             });
+            console.log("✅ Select fornitore aggiornata con", dbArrivi.fornitori.length, "fornitori");
         }
         
         // Funzioni per ottenere descrizioni e colori da Supabase
@@ -1519,11 +1527,13 @@
         // AGGIUNGI NUOVO FORNITORE A SUPABASE
         // ============================================
         async function aggiungiFornitoreSupabase() {
+            console.log("➕ Aggiungi fornitore...");
             const fornitore = document.getElementById('nuovoFornitore').value.trim().toUpperCase();
             const descrizione = document.getElementById('nuovaDescrizione').value.trim();
             const colore = document.getElementById('nuovoColore').value.trim();
             const larghezza = document.getElementById('nuovaLarghezza').value.trim();
             const spessore = document.getElementById('nuovoSpessore').value.trim();
+            console.log("➕ Dati fornitore:", { fornitore, descrizione, colore, larghezza, spessore });
             
             if (!fornitore) {
                 alert('Inserisci il nome del fornitore!');
@@ -1561,6 +1571,7 @@
                 });
                 
                 if (res.ok) {
+                    console.log("✅ Fornitore aggiunto, ricarico database...");
                     // Ricarica il database
                     await caricaDBArrivi();
                     
@@ -1570,6 +1581,7 @@
                     
                     // Aggiorna le tendine
                     aggiornaDescrizioni();
+                    console.log("✅ Fornitore selezionato e tendine aggiornate");
                     
                     // Pulisci i campi
                     document.getElementById('nuovoFornitore').value = '';
