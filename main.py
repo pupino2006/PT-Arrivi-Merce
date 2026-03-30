@@ -10,6 +10,8 @@ from datetime import datetime
 from google.cloud import vision
 from pydantic import BaseModel
 from typing import List, Optional
+import json
+import os
 
 app = FastAPI(title="API Arrivi Merce")
 
@@ -32,7 +34,7 @@ elif "GOOGLE_CREDENTIALS_JSON" in os.environ:
     os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "google_key_temp.json"
 
 def estrai_dati_chirurgica(testo_ocr: str):
-    """La logica di estrazione che abbiamo affinato nel prototipo"""
+    """Estrae dati dall'OCR - Focalizzato su Barcode, Peso e MQ"""
     righe = [r.strip().upper() for r in testo_ocr.split('\n') if r.strip()]
     t_completo = " ".join(righe)
     dati = {"barcode": "", "peso": 0, "mq": 0.0, "codice": "", "spessore": 0.0, "larghezza": 0}
@@ -71,6 +73,26 @@ async def analyze_image(file: UploadFile = File(...)):
         return dati
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+class NewSupplier(BaseModel):
+    name: str
+
+@app.get("/api/suppliers")
+async def get_suppliers():
+    if os.path.exists("fornitori.json"):
+        with open("fornitori.json", "r") as f:
+            return json.load(f)
+    return ["LAMPRE", "MARCEGAGLIA", "ARCELORMITTAL", "NOVELIS"]
+
+@app.post("/api/suppliers")
+async def add_supplier(supplier: NewSupplier):
+    suppliers = await get_suppliers()
+    name = supplier.name.strip().upper()
+    if name and name not in suppliers:
+        suppliers.append(name)
+        with open("fornitori.json", "w") as f:
+            json.dump(suppliers, f)
+    return suppliers
 
 class Collo(BaseModel):
     barcode: str
