@@ -648,6 +648,10 @@
             📥 Esporta in Excel
         </button>
         
+        <button class="btn-main" onclick="esportaEtichette()" style="background: var(--secondary); margin-top: 10px;">
+            🏷️ Esporta Etichette
+        </button>
+        
         <button class="btn-main" onclick="nuovoCarico()" style="background: var(--secondary);">
             🔄 Nuovo Carico
         </button>
@@ -902,8 +906,8 @@
                 return document.getElementById('fornitore').value !== '';
             }
             if (step === 3) {
-                // Verifica che tutti i rotoli siano compilati
-                return stato.rotoli.every(r => r.peso > 0 && r.mq > 0);
+                // Verifica che tutti i rotoli siano compilati (almeno peso o mq)
+                return stato.rotoli.every(r => r.peso > 0 || r.mq > 0);
             }
             return true;
         }
@@ -1474,39 +1478,41 @@
                 </div>
             `;
             
-            document.getElementById('etichettaContent').innerHTML = etichettaHTML;
-            document.getElementById('etichettaContainer').style.display = 'block';
+            // Apri anteprima in nuova scheda
+            const printWindow = window.open('', '_blank');
+            printWindow.document.write('<html><head><title>Anteprima Etichetta</title></head><body>');
+            printWindow.document.write(etichettaHTML);
+            printWindow.document.write('</body></html>');
+            printWindow.document.close();
             
-            // Genera QR Code
-            if (codiceBarre) {
-                const qrData = JSON.stringify({
-                    fornitore: fornitore,
-                    descrizione: descrizione,
-                    colore: colore,
-                    spessore: spessore,
-                    larghezza: larghezza,
-                    codiceBarre: codiceBarre,
-                    peso: peso,
-                    mq: mq,
-                    dataArrivo: dataArrivo
-                });
-                
-                QRCode.toCanvas(
-                    document.getElementById('qrCodeCanvas'),
-                    qrData,
-                    {
-                        width: 120,
-                        margin: 1,
-                        color: {
-                            dark: '#000000',
-                            light: '#ffffff'
-                        }
-                    },
-                    function(error) {
-                        if (error) console.error('Errore generazione QR:', error);
+            // Genera QR Code nella nuova scheda
+            const qrData = JSON.stringify({
+                fornitore: fornitore,
+                descrizione: descrizione,
+                colore: colore,
+                spessore: spessore,
+                larghezza: larghezza,
+                codiceBarre: codiceBarre || '',
+                peso: peso,
+                mq: mq,
+                dataArrivo: dataArrivo
+            });
+            
+            QRCode.toCanvas(
+                printWindow.document.getElementById('qrCodeCanvas'),
+                qrData,
+                {
+                    width: 120,
+                    margin: 1,
+                    color: {
+                        dark: '#000000',
+                        light: '#ffffff'
                     }
-                );
-            }
+                },
+                function(error) {
+                    if (error) console.error('Errore generazione QR:', error);
+                }
+            );
         }
         
         function stampaEtichetta() {
@@ -1531,9 +1537,7 @@
             const fornitore = document.getElementById('nuovoFornitore').value.trim().toUpperCase();
             const descrizione = document.getElementById('nuovaDescrizione').value.trim();
             const colore = document.getElementById('nuovoColore').value.trim();
-            const larghezza = document.getElementById('nuovaLarghezza').value.trim();
-            const spessore = document.getElementById('nuovoSpessore').value.trim();
-            console.log("➕ Dati fornitore:", { fornitore, descrizione, colore, larghezza, spessore });
+            console.log("➕ Dati fornitore:", { fornitore, descrizione, colore });
             
             if (!fornitore) {
                 alert('Inserisci il nome del fornitore!');
@@ -1564,9 +1568,7 @@
                     body: JSON.stringify({
                         'Produttore/Fornitore': fornitore,
                         'Descrizione': descrizione,
-                        'Codice Colore': colore,
-                        'Larghezza': larghezza,
-                        'Spessore': spessore
+                        'Codice Colore': colore
                     })
                 });
                 
@@ -1587,8 +1589,6 @@
                     document.getElementById('nuovoFornitore').value = '';
                     document.getElementById('nuovaDescrizione').value = '';
                     document.getElementById('nuovoColore').value = '';
-                    document.getElementById('nuovaLarghezza').value = '';
-                    document.getElementById('nuovoSpessore').value = '';
                     
                     // Chiudi il modal
                     document.getElementById('modalNuovoFornitore').style.display = 'none';
@@ -1652,16 +1652,20 @@
             }
             stato.rotoli[idx].colore = colore;
             
-            // Propaga descrizione e colore agli altri rotoli se selezionato
+            // Propaga descrizione, colore, larghezza e spessore agli altri rotoli se selezionato
             const propagare = document.getElementById('propagaDati')?.checked;
             if (propagare) {
+                const larghezza = stato.rotoli[idx].larghezza;
+                const spessore = stato.rotoli[idx].spessore;
                 for (let i = 0; i < stato.rotoli.length; i++) {
                     if (i !== idx) {
                         stato.rotoli[i].descrizione = descrizione;
                         stato.rotoli[i].colore = colore;
+                        stato.rotoli[i].larghezza = larghezza;
+                        stato.rotoli[i].spessore = spessore;
                     }
                 }
-                console.log("📋 Dati propagati a tutti i rotoli");
+                console.log("📋 Dati propagati a tutti i rotoli (descrizione, colore, larghezza, spessore)");
             }
             
             // Verifica se compilato
@@ -1769,6 +1773,186 @@
             alert('✅ File Excel scaricato!');
         }
         
+        function esportaEtichette() {
+            const fornitore = document.getElementById('fornitore').value;
+            const dataArrivo = document.getElementById('dataArrivo').value;
+            
+            if (!fornitore) {
+                alert('Seleziona prima un fornitore!');
+                return;
+            }
+            
+            // Genera etichette per tutti i rotoli
+            let etichetteHTML = `
+                <html>
+                <head>
+                    <title>Etichette Rotoli - ${dataArrivo}</title>
+                    <style>
+                        @page {
+                            size: 160mm 110mm;
+                            margin: 0;
+                        }
+                        body {
+                            font-family: 'Segoe UI', sans-serif;
+                            margin: 0;
+                            padding: 0;
+                        }
+                        .etichetta {
+                            width: 160mm;
+                            height: 110mm;
+                            padding: 5mm;
+                            box-sizing: border-box;
+                            background: white;
+                            border: 1px solid #000;
+                            page-break-after: always;
+                        }
+                        .etichetta:last-child {
+                            page-break-after: avoid;
+                        }
+                        .header {
+                            text-align: center;
+                            border-bottom: 2px solid #000;
+                            padding-bottom: 3mm;
+                            margin-bottom: 3mm;
+                        }
+                        .header h2 {
+                            margin: 0;
+                            font-size: 14pt;
+                        }
+                        .header p {
+                            margin: 2mm 0 0 0;
+                            font-size: 10pt;
+                        }
+                        .dati {
+                            margin-bottom: 3mm;
+                        }
+                        .riga {
+                            display: flex;
+                            justify-content: space-between;
+                            margin-bottom: 2mm;
+                            font-size: 10pt;
+                        }
+                        .riga span:first-child {
+                            font-weight: bold;
+                        }
+                        .qr-container {
+                            text-align: center;
+                            margin-top: 3mm;
+                            padding-top: 3mm;
+                            border-top: 1px solid #000;
+                        }
+                        .qr-code {
+                            display: inline-block;
+                            padding: 2mm;
+                            background: white;
+                            border: 1px solid #000;
+                        }
+                        .codice-lotto {
+                            margin: 2mm 0 0 0;
+                            font-size: 9pt;
+                        }
+                    </style>
+                </head>
+                <body>
+            `;
+            
+            stato.rotoli.forEach((rotolo, idx) => {
+                etichetteHTML += `
+                    <div class="etichetta">
+                        <div class="header">
+                            <h2>ETICHETTA ROTOLIO</h2>
+                            <p>PT - Arrivi Merce</p>
+                        </div>
+                        
+                        <div class="dati">
+                            <div class="riga">
+                                <span>Fornitore:</span>
+                                <span>${fornitore}</span>
+                            </div>
+                            <div class="riga">
+                                <span>Descrizione:</span>
+                                <span>${rotolo.descrizione || '-'}</span>
+                            </div>
+                            <div class="riga">
+                                <span>Colore:</span>
+                                <span>${rotolo.colore || '-'}</span>
+                            </div>
+                            <div class="riga">
+                                <span>Spessore:</span>
+                                <span>${rotolo.spessore || '-'} mm</span>
+                            </div>
+                            <div class="riga">
+                                <span>Larghezza:</span>
+                                <span>${rotolo.larghezza || '-'} mm</span>
+                            </div>
+                            <div class="riga">
+                                <span>Peso:</span>
+                                <span>${rotolo.peso || '-'} KG</span>
+                            </div>
+                            <div class="riga">
+                                <span>MQ:</span>
+                                <span>${rotolo.mq || '-'} m²</span>
+                            </div>
+                            <div class="riga">
+                                <span>Data Arrivo:</span>
+                                <span>${dataArrivo || '-'}</span>
+                            </div>
+                        </div>
+                        
+                        <div class="qr-container">
+                            <div class="qr-code">
+                                <canvas id="qrCanvas${idx}" width="120" height="120"></canvas>
+                            </div>
+                            <p class="codice-lotto">${rotolo.codiceBarre || 'Codice lotto non inserito'}</p>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            etichetteHTML += `
+                </body>
+                </html>
+            `;
+            
+            // Apri nuova finestra con tutte le etichette
+            const printWindow = window.open('', '_blank');
+            printWindow.document.write(etichetteHTML);
+            printWindow.document.close();
+            
+            // Genera QR code per ogni etichetta
+            stato.rotoli.forEach((rotolo, idx) => {
+                const qrData = JSON.stringify({
+                    fornitore: fornitore,
+                    descrizione: rotolo.descrizione || '',
+                    colore: rotolo.colore || '',
+                    spessore: rotolo.spessore || '',
+                    larghezza: rotolo.larghezza || '',
+                    codiceBarre: rotolo.codiceBarre || '',
+                    peso: rotolo.peso || '',
+                    mq: rotolo.mq || '',
+                    dataArrivo: dataArrivo
+                });
+                
+                QRCode.toCanvas(
+                    printWindow.document.getElementById(`qrCanvas${idx}`),
+                    qrData,
+                    {
+                        width: 120,
+                        margin: 1,
+                        color: {
+                            dark: '#000000',
+                            light: '#ffffff'
+                        }
+                    },
+                    function(error) {
+                        if (error) console.error('Errore generazione QR:', error);
+                    }
+                );
+            });
+            
+            alert('✅ Etichette generate! Usa Ctrl+P per stampare o salvare come PDF');
+        }
+        
         function nuovoCarico() {
             if (confirm('Vuoi iniziare un nuovo carico?')) {
                 location.reload();
@@ -1826,16 +2010,6 @@
                 <div class="input-group">
                     <label>🎨 Codice Colore:</label>
                     <input type="text" id="nuovoColore" placeholder="Es. RAL 9002">
-                </div>
-                
-                <div class="input-group">
-                    <label>↔️ Larghezza (mm):</label>
-                    <input type="text" id="nuovaLarghezza" placeholder="Es. 1250">
-                </div>
-                
-                <div class="input-group">
-                    <label>📏 Spessore (mm):</label>
-                    <input type="text" id="nuovoSpessore" placeholder="Es. 0.50">
                 </div>
                 
                 <div style="display: flex; gap: 10px; margin-top: 20px;">
