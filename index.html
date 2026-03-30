@@ -426,17 +426,23 @@
             
             <div class="input-group">
                 <label>🏭 Fornitore/Produttore:</label>
-                <select id="fornitore" onchange="aggiornaDescrizioni()">
-                    <option value="">Seleziona...</option>
-                    <option value="LAMPRE">LAMPRE</option>
-                    <option value="MARCEGAGLIA">MARCEGAGLIA</option>
-                    <option value="ARCELORMITTAL">ARCELORMITTAL</option>
-                    <option value="NOVELIS">NOVELIS</option>
-                    <option value="ATERA">ATERA</option>
-                    <option value="GUARDA">GUARDA</option>
-                    <option value="SOREN">SOREN</option>
-                    <option value="ALTRO">ALTRO</option>
-                </select>
+                <div style="display: flex; gap: 10px;">
+                    <select id="fornitore" onchange="aggiornaDescrizioni()" style="flex: 1;">
+                        <option value="">Seleziona...</option>
+                    </select>
+                    <button onclick="mostraModalNuovoFornitore()" style="
+                        background: var(--success);
+                        color: white;
+                        border: none;
+                        border-radius: 10px;
+                        padding: 12px 15px;
+                        font-weight: bold;
+                        cursor: pointer;
+                        font-size: 1.2rem;
+                    " title="Aggiungi nuovo fornitore">
+                        ➕
+                    </button>
+                </div>
             </div>
             
             <div class="input-group">
@@ -1101,21 +1107,21 @@
             const fornitore = document.getElementById('fornitore').value;
             stato.fornitore = fornitore;
             
-            // Riempi select descrizioni per ogni rotolo
-            stato.rotoli.forEach((rotolo, idx) => {
-                const select = document.createElement('select');
-                select.innerHTML = '<option value="">Seleziona...</option>';
-                
-                if (databaseFornitori[fornitore]) {
-                    databaseFornitori[fornitore].descrizioni.forEach(d => {
-                        const opt = document.createElement('option');
-                        opt.value = d;
-                        opt.textContent = d;
-                        if (rotolo.descrizione === d) opt.selected = true;
-                        select.appendChild(opt);
-                    });
-                }
+            // Aggiorna select descrizioni per il rotolo corrente
+            const descSelect = document.getElementById('descrizione');
+            const tutteDesc = getTutteDescrizioni(fornitore);
+            
+            descSelect.innerHTML = '<option value="">Seleziona descrizione...</option>';
+            
+            tutteDesc.forEach(d => {
+                const opt = document.createElement('option');
+                opt.value = d;
+                opt.textContent = d;
+                descSelect.appendChild(opt);
             });
+            
+            // Aggiorna anche i colori
+            aggiornaColore();
         }
         
         // ============================================
@@ -1191,7 +1197,6 @@
         
         function aggiornaColore() {
             const fornitore = document.getElementById('fornitore').value;
-            const descrizione = document.getElementById('descrizione').value;
             const colSelect = document.getElementById('codiceColore');
             const tuttiColori = getTuttiColori(fornitore);
             
@@ -1203,6 +1208,87 @@
                 opt.textContent = c;
                 colSelect.appendChild(opt);
             });
+        }
+        
+        // ============================================
+        // AGGIUNGI NUOVO FORNITORE A SUPABASE
+        // ============================================
+        async function aggiungiFornitoreSupabase() {
+            const fornitore = document.getElementById('nuovoFornitore').value.trim().toUpperCase();
+            const descrizione = document.getElementById('nuovaDescrizione').value.trim();
+            const colore = document.getElementById('nuovoColore').value.trim();
+            
+            if (!fornitore) {
+                alert('Inserisci il nome del fornitore!');
+                return;
+            }
+            
+            if (!descrizione) {
+                alert('Inserisci la descrizione!');
+                return;
+            }
+            
+            if (!colore) {
+                alert('Inserisci il codice colore!');
+                return;
+            }
+            
+            try {
+                mostraLoading('Aggiunta fornitore in corso...');
+                
+                const res = await fetch(`${SB_URL}/rest/v1/db_mp_arrivi`, {
+                    method: 'POST',
+                    headers: {
+                        'apikey': SB_KEY,
+                        'Authorization': `Bearer ${SB_KEY}`,
+                        'Content-Type': 'application/json',
+                        'Prefer': 'return=representation'
+                    },
+                    body: JSON.stringify({
+                        'Produttore/Fornitore': fornitore,
+                        'Descrizione': descrizione,
+                        'Codice Colore': colore
+                    })
+                });
+                
+                if (res.ok) {
+                    // Ricarica il database
+                    await caricaDBArrivi();
+                    
+                    // Seleziona il nuovo fornitore
+                    document.getElementById('fornitore').value = fornitore;
+                    stato.fornitore = fornitore;
+                    
+                    // Aggiorna le tendine
+                    aggiornaDescrizioni();
+                    
+                    // Pulisci i campi
+                    document.getElementById('nuovoFornitore').value = '';
+                    document.getElementById('nuovaDescrizione').value = '';
+                    document.getElementById('nuovoColore').value = '';
+                    
+                    // Chiudi il modal
+                    document.getElementById('modalNuovoFornitore').style.display = 'none';
+                    
+                    nascondiLoading();
+                    alert('✅ Fornitore aggiunto con successo!');
+                } else {
+                    nascondiLoading();
+                    alert('❌ Errore durante l\'aggiunta del fornitore');
+                }
+            } catch (e) {
+                nascondiLoading();
+                console.error('Errore:', e);
+                alert('❌ Errore di connessione');
+            }
+        }
+        
+        function mostraModalNuovoFornitore() {
+            document.getElementById('modalNuovoFornitore').style.display = 'flex';
+        }
+        
+        function nascondiModalNuovoFornitore() {
+            document.getElementById('modalNuovoFornitore').style.display = 'none';
         }
         
         function salvaRotoloCorrente() {
@@ -1379,6 +1465,59 @@
         function nascondiLoading() {
             document.getElementById('loading-overlay').style.display = 'none';
         }
+        
+        // ============================================
+        // MODAL AGGIUNGI NUOVO FORNITORE
+        // ============================================
+        const modalHTML = `
+        <div id="modalNuovoFornitore" style="
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.7);
+            z-index: 10000;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        ">
+            <div style="
+                background: white;
+                border-radius: 16px;
+                padding: 25px;
+                max-width: 400px;
+                width: 100%;
+                box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+            ">
+                <h3 style="margin-top: 0; color: var(--primary);">➕ Aggiungi Nuovo Fornitore</h3>
+                
+                <div class="input-group">
+                    <label>🏭 Nome Fornitore/Produttore:</label>
+                    <input type="text" id="nuovoFornitore" placeholder="Es. LAMPRE, MARCEGAGLIA...">
+                </div>
+                
+                <div class="input-group">
+                    <label>📝 Descrizione:</label>
+                    <input type="text" id="nuovaDescrizione" placeholder="Es. LAMPRE 0.50 ZINCATO">
+                </div>
+                
+                <div class="input-group">
+                    <label>🎨 Codice Colore:</label>
+                    <input type="text" id="nuovoColore" placeholder="Es. RAL 9002">
+                </div>
+                
+                <div style="display: flex; gap: 10px; margin-top: 20px;">
+                    <button onclick="aggiungiFornitoreSupabase()" class="btn-main btn-success" style="flex: 1;">
+                        ✅ Salva
+                    </button>
+                    <button onclick="nascondiModalNuovoFornitore()" class="btn-main btn-secondary" style="flex: 1;">
+                        ❌ Annulla
+                    </button>
+                </div>
+            </div>
+        </div>
+        `;
+        
+        document.body.insertAdjacentHTML('beforeend', modalHTML);
     </script>
 </body>
 </html>
