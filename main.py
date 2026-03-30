@@ -109,6 +109,8 @@ class PayloadExport(BaseModel):
     colore: str
     descrizione: str
     data_arrivo: str
+    terminato: Optional[str] = ""
+    linea: Optional[str] = ""
     colli: List[Collo]
 
 @app.post("/api/export")
@@ -117,15 +119,18 @@ async def export_excel(data: PayloadExport):
     rows = []
     for c in data.colli:
         rows.append({
-            'Data Arrivo': data.data_arrivo,
-            'Fornitore': data.fornitore,
+            'Codice a barre': c.barcode,
+            'Produttore/Fornitore': data.fornitore,
+            'Spessore dichiarato': data.spessore,
+            'Arrivo': data.data_arrivo,
             'Descrizione': data.descrizione,
-            'Spessore (mm)': data.spessore,
-            'Larghezza (mm)': data.larghezza,
-            'Colore': data.colore,
-            'Codice Lotto / Barcode': c.barcode,
-            'Peso (KG)': c.peso,
-            'MQ': c.mq,
+            'Codice Colore': data.colore,
+            'Peso': c.peso,
+            'Metri Quadri': c.mq,
+            'Terminato': data.terminato,
+            'Linea': data.linea,
+            # Mantengo la larghezza e foto in fondo se servissero, altrimenti si possono togliere
+            'Larghezza': data.larghezza,
             'Foto Originale': c.nome_foto
         })
     

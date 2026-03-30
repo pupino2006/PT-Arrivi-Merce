@@ -41,7 +41,9 @@ function App() {
     colore: 'RAL 9002',
     spessore: 0.5,
     larghezza: 1250,
-    data_arrivo: new Date().toISOString().split('T')[0]
+    data_arrivo: new Date().toISOString().split('T')[0],
+    terminato: 'NO',
+    linea: ''
   });
   const [colli, setColli] = useState([]);
   const [newSupplierName, setNewSupplierName] = useState('');
@@ -140,11 +142,21 @@ function App() {
           <div className="grid grid-cols-2 gap-4">
             <div className="col-span-2">
               <label className="block text-sm font-medium mb-1">Fornitore</label>
-              <select className="w-full p-2 border rounded mb-2" value={commonData.fornitore} onChange={e => setCommonData({...commonData, fornitore: e.target.value})}>
-                <option value="">Seleziona Fornitore...</option>
-                {suppliers.map(s => <option key={s} value={s}>{s}</option>)}
-                <option value="NEW_SUPPLIER">+ Aggiungi Nuovo Fornitore...</option>
-              </select>
+              <div className="flex gap-2 mb-2">
+                <select className="flex-1 p-2 border rounded" value={commonData.fornitore} onChange={e => setCommonData({...commonData, fornitore: e.target.value})}>
+                  <option value="">Seleziona Fornitore...</option>
+                  {suppliers.map(s => <option key={s} value={s}>{s}</option>)}
+                  <option value="NEW_SUPPLIER">+ Aggiungi Nuovo Fornitore...</option>
+                </select>
+                <button 
+                  type="button"
+                  onClick={() => setCommonData({...commonData, fornitore: 'NEW_SUPPLIER'})}
+                  className="bg-green-600 text-white px-4 rounded font-bold shadow-sm active:bg-green-700"
+                  title="Aggiungi nuovo fornitore"
+                >
+                  +
+                </button>
+              </div>
               
               {commonData.fornitore === 'NEW_SUPPLIER' && (
                 <div className="flex gap-2 p-3 bg-green-50 rounded border border-green-200 shadow-sm">
@@ -169,12 +181,28 @@ function App() {
               <input type="text" className="w-full p-2 border rounded" value={commonData.descrizione} onChange={e => setCommonData({...commonData, descrizione: e.target.value})} />
             </div>
             <div>
+              <label className="block text-sm font-medium">Data Arrivo</label>
+              <input type="date" className="w-full p-2 border rounded" value={commonData.data_arrivo} onChange={e => setCommonData({...commonData, data_arrivo: e.target.value})} />
+            </div>
+            <div>
               <label className="block text-sm font-medium">Colore/RAL</label>
               <input type="text" className="w-full p-2 border rounded" value={commonData.colore} onChange={e => setCommonData({...commonData, colore: e.target.value})} />
             </div>
             <div>
               <label className="block text-sm font-medium">Spessore (mm)</label>
               <input type="number" step="0.01" className="w-full p-2 border rounded" value={commonData.spessore} onChange={e => setCommonData({...commonData, spessore: e.target.value})} />
+            </div>
+            <div>
+              <label className="block text-sm font-medium">Larghezza (mm)</label>
+              <input type="number" className="w-full p-2 border rounded" value={commonData.larghezza} onChange={e => setCommonData({...commonData, larghezza: e.target.value})} />
+            </div>
+            <div>
+              <label className="block text-sm font-medium">Terminato</label>
+              <input type="text" className="w-full p-2 border rounded" value={commonData.terminato} onChange={e => setCommonData({...commonData, terminato: e.target.value})} />
+            </div>
+            <div>
+              <label className="block text-sm font-medium">Linea</label>
+              <input type="text" className="w-full p-2 border rounded" value={commonData.linea} onChange={e => setCommonData({...commonData, linea: e.target.value})} />
             </div>
           </div>
           <button onClick={() => setStep(3)} className="w-full bg-blue-700 text-white py-3 rounded-lg font-bold">Avanti ➡️</button>
