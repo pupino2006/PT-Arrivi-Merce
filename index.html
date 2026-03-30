@@ -17,6 +17,12 @@
     <!-- SheetJS per Excel -->
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     
+    <!-- Html5-QRCode per scansione QR/Barcode -->
+    <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+    
+    <!-- QRCode.js per generare QR Code -->
+    <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+    
     <style>
         :root { 
             --primary: #004a99; 
@@ -450,6 +456,21 @@
                 <input type="date" id="dataArrivo">
             </div>
             
+            <div class="two-cols">
+                <div class="input-group">
+                    <label>📏 Spessore (mm):</label>
+                    <select id="spessoreComune">
+                        <option value="">Seleziona...</option>
+                    </select>
+                </div>
+                <div class="input-group">
+                    <label>↔️ Larghezza (mm):</label>
+                    <select id="larghezzaComune">
+                        <option value="">Seleziona...</option>
+                    </select>
+                </div>
+            </div>
+            
             <div class="input-group">
                 <label>📝 Note:</label>
                 <textarea id="note" rows="2" placeholder="Note aggiuntive..."></textarea>
@@ -492,7 +513,44 @@
             
             <div class="input-group">
                 <label>📊 Codice a Barre:</label>
-                <input type="text" id="codiceBarre" placeholder="Codice a barre...">
+                <div style="display: flex; gap: 10px;">
+                    <input type="text" id="codiceBarre" placeholder="Codice a barre..." style="flex: 1;">
+                    <button onclick="avviaScansione()" style="
+                        background: var(--primary);
+                        color: white;
+                        border: none;
+                        border-radius: 10px;
+                        padding: 12px 15px;
+                        font-weight: bold;
+                        cursor: pointer;
+                        font-size: 1.2rem;
+                    " title="Scansiona QR Code o Codice a Barre">
+                        📷
+                    </button>
+                </div>
+            </div>
+            
+            <div id="scannerContainer" style="display: none; margin: 15px 0;">
+                <div id="reader" style="width: 100%;"></div>
+                <button onclick="chiudiScanner()" class="btn-main btn-secondary" style="margin-top: 10px;">
+                    ❌ Chiudi Scanner
+                </button>
+            </div>
+            
+            <div style="margin: 15px 0;">
+                <button onclick="generaEtichetta()" class="btn-main btn-success" style="width: 100%;">
+                    🏷️ Genera Etichetta
+                </button>
+            </div>
+            
+            <div id="etichettaContainer" style="display: none; margin: 15px 0; padding: 15px; background: white; border: 2px solid var(--primary); border-radius: 12px;">
+                <div id="etichettaContent"></div>
+                <button onclick="stampaEtichetta()" class="btn-main" style="margin-top: 10px;">
+                    🖨️ Stampa Etichetta
+                </button>
+                <button onclick="chiudiEtichetta()" class="btn-main btn-secondary" style="margin-top: 10px;">
+                    ❌ Chiudi
+                </button>
             </div>
             
             <div class="two-cols">
@@ -690,7 +748,9 @@
         let dbArrivi = {
             fornitori: [],
             descrizioni: {},
-            colori: {}
+            colori: {},
+            larghezze: {},
+            spessori: {}
         };
         
         // Carica da Supabase
@@ -708,18 +768,26 @@
                 const fornitoriSet = new Set();
                 const descMap = {};
                 const colorMap = {};
+                const larghezzeMap = {};
+                const spessoriMap = {};
                 
                 data.forEach(row => {
                     const f = row['Produttore/Fornitore'] || '';
                     const d = row['Descrizione'] || '';
                     const c = row['Codice Colore'] || '';
+                    const l = row['Larghezza'] || '';
+                    const s = row['Spessore'] || '';
                     
                     if (f) {
                         fornitoriSet.add(f);
                         if (!descMap[f]) descMap[f] = new Set();
                         if (!colorMap[f]) colorMap[f] = new Set();
+                        if (!larghezzeMap[f]) larghezzeMap[f] = new Set();
+                        if (!spessoriMap[f]) spessoriMap[f] = new Set();
                         if (d) descMap[f].add(d);
                         if (c) colorMap[f].add(c);
+                        if (l) larghezzeMap[f].add(l);
+                        if (s) spessoriMap[f].add(s);
                     }
                 });
                 
@@ -729,6 +797,12 @@
                 }
                 for (const f in colorMap) {
                     dbArrivi.colori[f] = Array.from(colorMap[f]).sort();
+                }
+                for (const f in larghezzeMap) {
+                    dbArrivi.larghezze[f] = Array.from(larghezzeMap[f]).sort();
+                }
+                for (const f in spessoriMap) {
+                    dbArrivi.spessori[f] = Array.from(spessoriMap[f]).sort();
                 }
                 
                 console.log("✅ Caricati:", dbArrivi.fornitori.length, "fornitori");
@@ -759,6 +833,16 @@
         function getTuttiColori(fornitore) {
             if (!fornitore) return [];
             return dbArrivi.colori[fornitore] || [];
+        }
+        
+        function getTutteLarghezze(fornitore) {
+            if (!fornitore) return [];
+            return dbArrivi.larghezze[fornitore] || [];
+        }
+        
+        function getTuttiSpessori(fornitore) {
+            if (!fornitore) return [];
+            return dbArrivi.spessori[fornitore] || [];
         }
         
         // Avvia caricamento
@@ -1122,6 +1206,12 @@
             
             // Aggiorna anche i colori
             aggiornaColore();
+            
+            // Aggiorna larghezza e spessore
+            aggiornaLarghezzaSpessore();
+            
+            // Aggiorna spessore e larghezza comune (Step 2)
+            aggiornaSpessoreLarghezzaComune();
         }
         
         // ============================================
@@ -1210,6 +1300,221 @@
             });
         }
         
+        function aggiornaLarghezzaSpessore() {
+            const fornitore = document.getElementById('fornitore').value;
+            const largSelect = document.getElementById('larghezza');
+            const spessSelect = document.getElementById('spessore');
+            const tutteLarg = getTutteLarghezze(fornitore);
+            const tuttiSpess = getTuttiSpessori(fornitore);
+            
+            largSelect.innerHTML = '<option value="">Seleziona larghezza...</option>';
+            spessSelect.innerHTML = '<option value="">Seleziona spessore...</option>';
+            
+            tutteLarg.forEach(l => {
+                const opt = document.createElement('option');
+                opt.value = l;
+                opt.textContent = l;
+                largSelect.appendChild(opt);
+            });
+            
+            tuttiSpess.forEach(s => {
+                const opt = document.createElement('option');
+                opt.value = s;
+                opt.textContent = s;
+                spessSelect.appendChild(opt);
+            });
+        }
+        
+        function aggiornaSpessoreLarghezzaComune() {
+            const fornitore = document.getElementById('fornitore').value;
+            const largComuneSelect = document.getElementById('larghezzaComune');
+            const spessComuneSelect = document.getElementById('spessoreComune');
+            const tutteLarg = getTutteLarghezze(fornitore);
+            const tuttiSpess = getTuttiSpessori(fornitore);
+            
+            largComuneSelect.innerHTML = '<option value="">Seleziona...</option>';
+            spessComuneSelect.innerHTML = '<option value="">Seleziona...</option>';
+            
+            tutteLarg.forEach(l => {
+                const opt = document.createElement('option');
+                opt.value = l;
+                opt.textContent = l;
+                largComuneSelect.appendChild(opt);
+            });
+            
+            tuttiSpess.forEach(s => {
+                const opt = document.createElement('option');
+                opt.value = s;
+                opt.textContent = s;
+                spessComuneSelect.appendChild(opt);
+            });
+        }
+        
+        // ============================================
+        // SCANSIONE QR CODE / CODICE A BARRE
+        // ============================================
+        let html5QrcodeScanner = null;
+        
+        function avviaScansione() {
+            const scannerContainer = document.getElementById('scannerContainer');
+            scannerContainer.style.display = 'block';
+            
+            html5QrcodeScanner = new Html5QrcodeScanner(
+                "reader",
+                { fps: 10, qrbox: { width: 250, height: 250 } },
+                false
+            );
+            
+            html5QrcodeScanner.render(
+                (decodedText) => {
+                    // Successo - codice scansionato
+                    document.getElementById('codiceBarre').value = decodedText;
+                    chiudiScanner();
+                    alert('✅ Codice scansionato: ' + decodedText);
+                },
+                (errorMessage) => {
+                    // Errore - ignora
+                    console.log('Errore scansione:', errorMessage);
+                }
+            );
+        }
+        
+        function chiudiScanner() {
+            if (html5QrcodeScanner) {
+                html5QrcodeScanner.clear();
+                html5QrcodeScanner = null;
+            }
+            document.getElementById('scannerContainer').style.display = 'none';
+        }
+        
+        // ============================================
+        // GENERAZIONE ETICHETTA
+        // ============================================
+        function generaEtichetta() {
+            const fornitore = document.getElementById('fornitore').value;
+            const descrizione = document.getElementById('descrizione').value;
+            const colore = document.getElementById('codiceColore').value;
+            const spessore = document.getElementById('spessore').value;
+            const larghezza = document.getElementById('larghezza').value;
+            const codiceBarre = document.getElementById('codiceBarre').value;
+            const peso = document.getElementById('peso').value;
+            const mq = document.getElementById('mq').value;
+            const dataArrivo = document.getElementById('dataArrivo').value;
+            
+            if (!fornitore) {
+                alert('Seleziona prima un fornitore!');
+                return;
+            }
+            
+            // Genera contenuto etichetta (formato 160mm x 110mm per Zebra ZT230)
+            const etichettaHTML = `
+                <div style="
+                    font-family: 'Segoe UI', sans-serif;
+                    width: 160mm;
+                    height: 110mm;
+                    padding: 5mm;
+                    box-sizing: border-box;
+                    background: white;
+                    border: 1px solid #000;
+                ">
+                    <div style="text-align: center; border-bottom: 2px solid #000; padding-bottom: 3mm; margin-bottom: 3mm;">
+                        <h2 style="margin: 0; font-size: 14pt;">ETICHETTA ROTOLIO</h2>
+                        <p style="margin: 2mm 0 0 0; font-size: 10pt;">PT - Arrivi Merce</p>
+                    </div>
+                    
+                    <div style="margin-bottom: 3mm;">
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 2mm; font-size: 10pt;">
+                            <span style="font-weight: bold;">Fornitore:</span>
+                            <span>${fornitore}</span>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 2mm; font-size: 10pt;">
+                            <span style="font-weight: bold;">Descrizione:</span>
+                            <span>${descrizione || '-'}</span>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 2mm; font-size: 10pt;">
+                            <span style="font-weight: bold;">Colore:</span>
+                            <span>${colore || '-'}</span>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 2mm; font-size: 10pt;">
+                            <span style="font-weight: bold;">Spessore:</span>
+                            <span>${spessore || '-'} mm</span>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 2mm; font-size: 10pt;">
+                            <span style="font-weight: bold;">Larghezza:</span>
+                            <span>${larghezza || '-'} mm</span>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 2mm; font-size: 10pt;">
+                            <span style="font-weight: bold;">Peso:</span>
+                            <span>${peso || '-'} KG</span>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 2mm; font-size: 10pt;">
+                            <span style="font-weight: bold;">MQ:</span>
+                            <span>${mq || '-'} m²</span>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 2mm; font-size: 10pt;">
+                            <span style="font-weight: bold;">Data Arrivo:</span>
+                            <span>${dataArrivo || '-'}</span>
+                        </div>
+                    </div>
+                    
+                    <div style="text-align: center; margin-top: 3mm; padding-top: 3mm; border-top: 1px solid #000;">
+                        <div id="qrCodeContainer" style="display: inline-block; padding: 2mm; background: white; border: 1px solid #000;">
+                            <canvas id="qrCodeCanvas"></canvas>
+                        </div>
+                        <p style="margin: 2mm 0 0 0; font-size: 9pt;">${codiceBarre || 'Codice lotto non inserito'}</p>
+                    </div>
+                </div>
+            `;
+            
+            document.getElementById('etichettaContent').innerHTML = etichettaHTML;
+            document.getElementById('etichettaContainer').style.display = 'block';
+            
+            // Genera QR Code
+            if (codiceBarre) {
+                const qrData = JSON.stringify({
+                    fornitore: fornitore,
+                    descrizione: descrizione,
+                    colore: colore,
+                    spessore: spessore,
+                    larghezza: larghezza,
+                    codiceBarre: codiceBarre,
+                    peso: peso,
+                    mq: mq,
+                    dataArrivo: dataArrivo
+                });
+                
+                QRCode.toCanvas(
+                    document.getElementById('qrCodeCanvas'),
+                    qrData,
+                    {
+                        width: 120,
+                        margin: 1,
+                        color: {
+                            dark: '#000000',
+                            light: '#ffffff'
+                        }
+                    },
+                    function(error) {
+                        if (error) console.error('Errore generazione QR:', error);
+                    }
+                );
+            }
+        }
+        
+        function stampaEtichetta() {
+            const etichettaContent = document.getElementById('etichettaContent').innerHTML;
+            const printWindow = window.open('', '', 'width=600,height=600');
+            printWindow.document.write('<html><head><title>Etichetta Rotolio</title></head><body>');
+            printWindow.document.write(etichettaContent);
+            printWindow.document.write('</body></html>');
+            printWindow.document.close();
+            printWindow.print();
+        }
+        
+        function chiudiEtichetta() {
+            document.getElementById('etichettaContainer').style.display = 'none';
+        }
+        
         // ============================================
         // AGGIUNGI NUOVO FORNITORE A SUPABASE
         // ============================================
@@ -1217,6 +1522,8 @@
             const fornitore = document.getElementById('nuovoFornitore').value.trim().toUpperCase();
             const descrizione = document.getElementById('nuovaDescrizione').value.trim();
             const colore = document.getElementById('nuovoColore').value.trim();
+            const larghezza = document.getElementById('nuovaLarghezza').value.trim();
+            const spessore = document.getElementById('nuovoSpessore').value.trim();
             
             if (!fornitore) {
                 alert('Inserisci il nome del fornitore!');
@@ -1247,7 +1554,9 @@
                     body: JSON.stringify({
                         'Produttore/Fornitore': fornitore,
                         'Descrizione': descrizione,
-                        'Codice Colore': colore
+                        'Codice Colore': colore,
+                        'Larghezza': larghezza,
+                        'Spessore': spessore
                     })
                 });
                 
@@ -1266,6 +1575,8 @@
                     document.getElementById('nuovoFornitore').value = '';
                     document.getElementById('nuovaDescrizione').value = '';
                     document.getElementById('nuovoColore').value = '';
+                    document.getElementById('nuovaLarghezza').value = '';
+                    document.getElementById('nuovoSpessore').value = '';
                     
                     // Chiudi il modal
                     document.getElementById('modalNuovoFornitore').style.display = 'none';
@@ -1503,6 +1814,16 @@
                 <div class="input-group">
                     <label>🎨 Codice Colore:</label>
                     <input type="text" id="nuovoColore" placeholder="Es. RAL 9002">
+                </div>
+                
+                <div class="input-group">
+                    <label>↔️ Larghezza (mm):</label>
+                    <input type="text" id="nuovaLarghezza" placeholder="Es. 1250">
+                </div>
+                
+                <div class="input-group">
+                    <label>📏 Spessore (mm):</label>
+                    <input type="text" id="nuovoSpessore" placeholder="Es. 0.50">
                 </div>
                 
                 <div style="display: flex; gap: 10px; margin-top: 20px;">
