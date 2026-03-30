@@ -1,0 +1,1384 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>PT - Arrivi Merce</title>
+    
+    <!-- PWA -->
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#004a99">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <link rel="apple-touch-icon" href="ptsimbolo.png">
+    
+    <!-- Tesseract.js per OCR -->
+    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+    
+    <!-- SheetJS per Excel -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    
+    <style>
+        :root { 
+            --primary: #004a99; 
+            --secondary: #8b98a7; 
+            --bg: #f0f2f5; 
+            --white: #ffffff; 
+            --success: #28a745;
+            --danger: #dc3545;
+            --warning: #ffc107;
+        }
+        
+        * { box-sizing: border-box; }
+        
+        body { 
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; 
+            margin: 0; 
+            background: var(--bg); 
+            color: #333; 
+            padding-bottom: 80px;
+        }
+        
+        .header-logo { 
+            display: flex; 
+            justify-content: center; 
+            align-items: center; 
+            padding: 15px; 
+            background: var(--white); 
+            border-bottom: 1px solid #ddd; 
+        }
+        .header-logo img { height: 50px; }
+        
+        .tabs { 
+            display: flex; 
+            background: var(--primary); 
+            position: sticky; 
+            top: 0; 
+            z-index: 100; 
+        }
+        .tab-btn { 
+            flex: 1; 
+            padding: 15px 5px; 
+            border: none; 
+            background: none; 
+            color: rgba(255,255,255,0.7); 
+            font-weight: bold; 
+            cursor: pointer; 
+            transition: 0.3s; 
+            border-bottom: 3px solid transparent; 
+            font-size: 0.8rem;
+        }
+        .tab-btn.active { 
+            color: white; 
+            border-bottom-color: white; 
+            background: rgba(255,255,255,0.1); 
+        }
+        .tab-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        .container { padding: 20px; max-width: 600px; margin: auto; }
+        
+        .card { 
+            background: var(--white); 
+            padding: 20px; 
+            margin-bottom: 15px; 
+            border-radius: 12px; 
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05); 
+        }
+        
+        .section-title { 
+            background: var(--primary); 
+            color: white; 
+            padding: 12px; 
+            border-radius: 8px; 
+            margin: 20px 0 15px; 
+            text-align: center; 
+            font-weight: bold; 
+        }
+        
+        .step-indicator {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin: 15px 0;
+        }
+        
+        .step-dot {
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 0.9rem;
+            background: #ddd;
+            color: #666;
+        }
+        
+        .step-dot.active {
+            background: var(--primary);
+            color: white;
+        }
+        
+        .step-dot.completed {
+            background: var(--success);
+            color: white;
+        }
+        
+        .input-group { margin-bottom: 15px; }
+        .input-group label { display: block; font-weight: bold; margin-bottom: 5px; color: var(--primary); font-size: 0.85rem; }
+        .input-group input, .input-group select, .input-group textarea { 
+            width: 100%; 
+            padding: 12px; 
+            border: 2px solid #ddd; 
+            border-radius: 10px; 
+            font-size: 1rem; 
+        }
+        .input-group input:focus, .input-group select:focus {
+            border-color: var(--primary);
+            outline: none;
+        }
+        
+        .btn-main { 
+            width: 100%; 
+            padding: 15px; 
+            background: var(--primary); 
+            color: white; 
+            border: none; 
+            border-radius: 12px; 
+            font-size: 1rem; 
+            font-weight: bold; 
+            cursor: pointer; 
+            margin-top: 10px;
+        }
+        
+        .btn-success { background: var(--success); }
+        .btn-warning { background: var(--warning); color: #333; }
+        .btn-danger { background: var(--danger); }
+        .btn-secondary { background: var(--secondary); }
+        
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        /* Foto Preview */
+        .foto-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+            gap: 8px;
+            margin: 15px 0;
+        }
+        
+        .foto-item {
+            position: relative;
+            border-radius: 8px;
+            overflow: hidden;
+            border: 2px solid #ddd;
+        }
+        
+        .foto-item img {
+            width: 100%;
+            height: 80px;
+            object-fit: cover;
+        }
+        
+        .foto-item.processed {
+            border-color: var(--success);
+        }
+        
+        .foto-item .foto-num {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: rgba(0,0,0,0.7);
+            color: white;
+            font-size: 0.7rem;
+            padding: 2px;
+            text-align: center;
+        }
+        
+        /* Colli */
+        .collo-card {
+            background: var(--white);
+            border-radius: 12px;
+            padding: 15px;
+            margin-bottom: 15px;
+            border-left: 5px solid var(--primary);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        }
+        
+        .collo-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #eee;
+        }
+        
+        .collo-number {
+            font-weight: bold;
+            color: var(--primary);
+        }
+        
+        .two-cols {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+        
+        /* Loading */
+        #loading-overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.8);
+            z-index: 9999;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            color: white;
+            text-align: center;
+            padding: 20px;
+        }
+        
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 5px solid rgba(255,255,255,0.3);
+            border-top-color: white;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 20px;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        /* Riepilogo */
+        .riepilogo-box {
+            background: #d4edda;
+            border-left: 4px solid var(--success);
+            padding: 15px;
+            border-radius: 8px;
+            margin: 15px 0;
+        }
+        
+        .totali {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 10px;
+            text-align: center;
+        }
+        
+        .totale-item {
+            background: white;
+            padding: 10px;
+            border-radius: 8px;
+        }
+        
+        .totale-num {
+            font-size: 1.3rem;
+            font-weight: bold;
+            color: var(--primary);
+        }
+        
+        .totale-label {
+            font-size: 0.7rem;
+            color: var(--secondary);
+        }
+        
+        /* Tabella dati */
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 15px 0;
+            font-size: 0.8rem;
+        }
+        
+        .data-table th, .data-table td {
+            border: 1px solid #ddd;
+            padding: 6px;
+            text-align: left;
+        }
+        
+        .data-table th {
+            background: var(--primary);
+            color: white;
+            font-size: 0.7rem;
+        }
+        
+        .data-table tr:nth-child(even) {
+            background: #f8f9fa;
+        }
+        
+        .data-table input {
+            width: 100%;
+            padding: 5px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 0.85rem;
+        }
+        
+        /* Fornitore info */
+        .fornitore-badge {
+            display: inline-block;
+            padding: 10px 20px;
+            background: var(--primary);
+            color: white;
+            border-radius: 20px;
+            font-weight: bold;
+            margin: 10px 0;
+        }
+        
+        /* Progress bar */
+        .progress-bar {
+            height: 8px;
+            background: #ddd;
+            border-radius: 4px;
+            overflow: hidden;
+            margin: 15px 0;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: var(--success);
+            transition: width 0.3s;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="loading-overlay">
+        <div class="spinner"></div>
+        <div id="loading-text">Elaborazione in corso...</div>
+        <div id="loading-progress">0%</div>
+        <div class="progress-bar" style="width: 200px;">
+            <div class="progress-fill" id="progress-fill" style="width: 0%;"></div>
+        </div>
+    </div>
+
+    <div class="header-logo">
+        <img src="ptsimbolo.png" alt="Logo PT">
+    </div>
+
+    <!-- TABS -->
+    <nav class="tabs">
+        <button class="tab-btn active" id="tab-btn-1" onclick="vaiAlStep(1)">1. 📸</button>
+        <button class="tab-btn" id="tab-btn-2" onclick="vaiAlStep(2)" disabled>2. 📋</button>
+        <button class="tab-btn" id="tab-btn-3" onclick="vaiAlStep(3)" disabled>3. ✏️</button>
+        <button class="tab-btn" id="tab-btn-4" onclick="vaiAlStep(4)" disabled>4. 📥</button>
+    </nav>
+
+    <!-- STEP INDICATOR -->
+    <div class="container">
+        <div class="step-indicator">
+            <div class="step-dot active" id="step-1">1</div>
+            <div class="step-dot" id="step-2">2</div>
+            <div class="step-dot" id="step-3">3</div>
+            <div class="step-dot" id="step-4">4</div>
+        </div>
+    </div>
+
+    <!-- ============================================== -->
+    <!-- STEP 1: CARICAMENTO FOTO -->
+    <!-- ============================================== -->
+    <div id="step-1-content" class="tab-content container">
+        <div class="section-title">📸 Step 1: Carica le Foto</div>
+        
+        <div class="card">
+            <p style="color: var(--secondary); font-size: 0.9rem; margin-bottom: 15px;">
+                📷 Carica le foto delle <strong>etichette</strong> di tutti i rotoli. 
+                L'app analizzerà automaticamente tutte le foto e estrarrà i dati comuni.
+            </p>
+            
+            <input type="file" id="fotoInput" accept="image/*" multiple style="display: none;" onchange="gestisciFotoSelezionate(event)">
+            
+            <button class="btn-main btn-warning" onclick="document.getElementById('fotoInput').click()">
+                📁 Seleziona Foto dalla Galleria
+            </button>
+            
+            <div id="fotoGrid" class="foto-grid"></div>
+            
+            <button id="btnAnalizza" class="btn-main btn-success" onclick="analizzaTutteFoto()" style="display: none;">
+                🔍 Analizza Tutte le Foto
+            </button>
+        </div>
+    </div>
+
+    <!-- ============================================== -->
+    <!-- STEP 2: DATI COMUNI -->
+    <!-- ============================================== -->
+    <div id="step-2-content" class="tab-content container" style="display: none;">
+        <div class="section-title">📋 Step 2: Dati Comuni</div>
+        
+        <div class="card">
+            <p style="color: var(--secondary); font-size: 0.9rem;">
+                I dati estratti dalle foto sono stati associati. Compila i dati comuni a tutti i rotoli.
+            </p>
+            
+            <div id="fornitoreEstratto" class="fornitore-badge" style="display: none;"></div>
+            
+            <div class="input-group">
+                <label>🏭 Fornitore/Produttore:</label>
+                <select id="fornitore" onchange="aggiornaDescrizioni()">
+                    <option value="">Seleziona...</option>
+                    <option value="LAMPRE">LAMPRE</option>
+                    <option value="MARCEGAGLIA">MARCEGAGLIA</option>
+                    <option value="ARCELORMITTAL">ARCELORMITTAL</option>
+                    <option value="NOVELIS">NOVELIS</option>
+                    <option value="ATERA">ATERA</option>
+                    <option value="GUARDA">GUARDA</option>
+                    <option value="SOREN">SOREN</option>
+                    <option value="ALTRO">ALTRO</option>
+                </select>
+            </div>
+            
+            <div class="input-group">
+                <label>📅 Data Arrivo:</label>
+                <input type="date" id="dataArrivo">
+            </div>
+            
+            <div class="input-group">
+                <label>📝 Note:</label>
+                <textarea id="note" rows="2" placeholder="Note aggiuntive..."></textarea>
+            </div>
+            
+            <div style="margin-top: 20px;">
+                <p style="font-weight: bold; color: var(--primary);">📦 Numero rotoli trovati: <span id="numRotoli">0</span></p>
+            </div>
+            
+            <button class="btn-main btn-success" onclick="vaiAlStep(3)">
+                Avanti ➔
+            </button>
+        </div>
+    </div>
+
+    <!-- ============================================== -->
+    <!-- STEP 3: DATI SINGOLI -->
+    <!-- ============================================== -->
+    <div id="step-3-content" class="tab-content container" style="display: none;">
+        <div class="section-title">✏️ Step 3: Dati per Rotolo</div>
+        
+        <div class="card">
+            <p style="color: var(--secondary); font-size: 0.9rem;">
+                Inserisci i dati per ogni rotolo. I campi compilati automaticamente possono essere modificati.
+            </p>
+            
+            <div class="input-group">
+                <label>Rotolo corrente:</label>
+                <select id="rotoloCorrente" onchange="mostraRotoloSelezionato()">
+                    <option value="">Seleziona rotolo...</option>
+                </select>
+            </div>
+        </div>
+        
+        <div id="rotoloForm" class="card" style="display: none;">
+            <div class="collo-header">
+                <span class="collo-number" id="rotoloTitolo">Rotolo #1</span>
+                <span id="rotoloStatus" style="color: var(--success);">✓ Compilato</span>
+            </div>
+            
+            <div class="input-group">
+                <label>📊 Codice a Barre:</label>
+                <input type="text" id="codiceBarre" placeholder="Codice a barre...">
+            </div>
+            
+            <div class="two-cols">
+                <div class="input-group">
+                    <label>⚖️ Peso (KG):</label>
+                    <input type="number" id="peso" placeholder="Peso...">
+                </div>
+                <div class="input-group">
+                    <label>📐 MQ:</label>
+                    <input type="number" step="0.01" id="mq" placeholder="Metri quadri...">
+                </div>
+            </div>
+            
+            <div class="input-group">
+                <label>🏷️ Descrizione:</label>
+                <select id="descrizione" onchange="aggiornaColore()">
+                    <option value="">Seleziona descrizione...</option>
+                </select>
+                <input type="text" id="descrizioneCustom" placeholder="Oppure inserisci nuova descrizione..." 
+                       style="margin-top:5px; padding:10px; border:1px solid #ddd; border-radius:5px; width:100%;">
+            </div>
+            
+            <div class="two-cols">
+                <div class="input-group">
+                    <label>🎨 Codice Colore:</label>
+                    <select id="codiceColore">
+                        <option value="">Seleziona colore...</option>
+                    </select>
+                    <input type="text" id="coloreCustom" placeholder="Oppure inserisci nuovo colore..." 
+                           style="margin-top:5px; padding:8px; border:1px solid #ddd; border-radius:5px; width:100%;">
+                </div>
+                <div class="input-group">
+                    <label>📏 Spessore (mm):</label>
+                    <input type="number" step="0.01" id="spessore" placeholder="Spessore...">
+                </div>
+            </div>
+            
+            <div class="two-cols">
+                <div class="input-group">
+                    <label>↔️ Larghezza (mm):</label>
+                    <input type="number" id="larghezza" placeholder="Larghezza...">
+                </div>
+                <div class="input-group">
+                    <label>↕️ Lunghezza (m):</label>
+                    <input type="number" step="0.1" id="lunghezza" placeholder="Lunghezza...">
+                </div>
+            </div>
+            
+            <div style="margin: 15px 0; padding: 10px; background: #e8f4f8; border-radius: 8px;">
+                <label style="display: flex; align-items: center; cursor: pointer;">
+                    <input type="checkbox" id="propagaDati" style="margin-right: 10px; width: 20px; height: 20px;">
+                    <span style="font-weight: bold; color: var(--primary);">
+                        📋 Applica a tutti i rotoli (descrizione, colore)
+                    </span>
+                </label>
+            </div>
+            
+            <button class="btn-main btn-secondary" onclick="salvaRotoloCorrente()">
+                💾 Salva e Prossimo
+            </button>
+        </div>
+    </div>
+
+    <!-- ============================================== -->
+    <!-- STEP 4: ESPORTA -->
+    <!-- ============================================== -->
+    <div id="step-4-content" class="tab-content container" style="display: none;">
+        <div class="section-title">📥 Step 4: Esporta</div>
+        
+        <div class="riepilogo-box">
+            <h4 style="margin-top: 0;">📊 Riepilogo Finale</h4>
+            <div class="totali">
+                <div class="totale-item">
+                    <div class="totale-num" id="totRotoli">0</div>
+                    <div class="totale-label">Rotoli</div>
+                </div>
+                <div class="totale-item">
+                    <div class="totale-num" id="totMQ">0</div>
+                    <div class="totale-label">MQ Totali</div>
+                </div>
+                <div class="totale-item">
+                    <div class="totale-num" id="totPeso">0</div>
+                    <div class="totale-label">KG Totali</div>
+                </div>
+                <div class="totale-item">
+                    <div class="totale-num" id="totLinea1">0</div>
+                    <div class="totale-label">Linea 1</div>
+                </div>
+            </div>
+        </div>
+        
+        <div id="tabellaPreview" class="card" style="overflow-x: auto;"></div>
+        
+        <button class="btn-main btn-success" onclick="esportaExcel()">
+            📥 Esporta in Excel
+        </button>
+        
+        <button class="btn-main" onclick="nuovoCarico()" style="background: var(--secondary);">
+            🔄 Nuovo Carico
+        </button>
+    </div>
+
+    <script>
+        // ============================================
+        // DATABASE DESCRIZIONI E COLORI PER FORNITORE
+        // ============================================
+        // Descrizioni e colori custom inseriti manualmente (persistenti per sessione)
+        let descrizioniCustom = [];
+        let coloriCustom = [];
+        
+        const databaseFornitori = {
+            'LAMPRE': {
+                descrizioni: [
+                    'LAMPRE 0.50 ALUMINIO', 'LAMPRE 0.60 ALUMINIO', 'LAMPRE 0.50 ACCIAIO',
+                    'LAMPRE 0.60 ACCIAIO', 'LAMPRE 0.50 PREVERNICIATO', 'LAMPRE 0.60 PREVERNICIATO',
+                    'LAMPRE 0.70 ALUMINIO', 'LAMPRE 0.70 ACCIAIO', 'LAMPRE 0.70 PREVERNICIATO',
+                    'LAMPRE 0.80 ALUMINIO', 'LAMPRE 0.80 ACCIAIO', 'LAMPRE 1.00 ALUMINIO'
+                ],
+                colori: ['RAL 9002', 'RAL 9010', 'RAL 7016', 'RAL 6009', 'RAL 8017', 'RAL 3000', 'RAL 5012', 'RAL 5024']
+            },
+            'MARCEGAGLIA': {
+                descrizioni: [
+                    'MARCEGAGLIA 0.50 ZINCATO', 'MARCEGAGLIA 0.60 ZINCATO',
+                    'MARCEGAGLIA 0.50 PREVERNICIATO', 'MARCEGAGLIA 0.60 PREVERNICIATO',
+                    'MARCEGAGLIA 0.50 ALLUMINIO', 'MARCEGAGLIA 0.60 ALLUMINIO',
+                    'MARCEGAGLIA 0.70 ZINCATO', 'MARCEGAGLIA 0.70 PREVERNICIATO',
+                    'MARCEGAGLIA 0.80 ZINCATO', 'MARCEGAGLIA 1.00 ZINCATO',
+                    'MARCEGAGLIA 1.20 ZINCATO', 'MARCEGAGLIA DOPPIO ZINCATO'
+                ],
+                colori: ['RAL 9002', 'RAL 9010', 'RAL 7016', 'RAL 6009', 'RAL 8017', 'MP001', 'MP002', 'MP003', 'RAL 1015', 'RAL 7035']
+            },
+            'ARCELORMITTAL': {
+                descrizioni: [
+                    'ARCELORMITTAL 0.50 ZINCATO', 'ARCELORMITTAL 0.60 ZINCATO',
+                    'ARCELORMITTAL 0.50 PREVERNICIATO', 'ARCELORMITTAL 0.60 PREVERNICIATO',
+                    'ARCELORMITTAL 0.70 ZINCATO', 'ARCELORMITTAL 0.80 ZINCATO',
+                    'ARCELORMITTAL 1.00 ZINCATO', 'ARCELORMITTAL MAGNEL ZINCATO',
+                    'ARCELORMITTAL DOPPIO ZINCATO'
+                ],
+                colori: ['RAL 9002', 'RAL 9010', 'RAL 7016', 'RAL 6009', 'RAL 8017', 'RAL 7035', 'RAL 9006']
+            },
+            'NOVELIS': {
+                descrizioni: [
+                    'NOVELIS 0.50 ALLUMINIO', 'NOVELIS 0.60 ALLUMINIO',
+                    'NOVELIS 0.50 PREVERNICIATO', 'NOVELIS 0.60 PREVERNICIATO',
+                    'NOVELIS 0.70 ALLUMINIO', 'NOVELIS 0.80 ALLUMINIO',
+                    'NOVELIS 1.00 ALLUMINIO', 'NOVELIS 1.20 ALLUMINIO'
+                ],
+                colori: ['NATURALE', 'PREVERNICIATO RAL 9006', 'PREVERNICIATO RAL 9010', 'RAL 7016', 'RAL 8017']
+            },
+            'ATERA': {
+                descrizioni: [
+                    'ATERA 0.50 ZINCATO', 'ATERA 0.60 ZINCATO',
+                    'ATERA 0.50 PREVERNICIATO', 'ATERA 0.60 PREVERNICIATO',
+                    'ATERA 0.70 ZINCATO', 'ATERA 0.80 ZINCATO',
+                    'ATERA 1.00 ZINCATO'
+                ],
+                colori: ['RAL 9002', 'RAL 9010', 'RAL 7016', 'RAL 8017', 'RAL 7035', 'RAL 6009']
+            },
+            'GUARDA': {
+                descrizioni: [
+                    'GUARDA 0.50 ZINCATO', 'GUARDA 0.60 ZINCATO',
+                    'GUARDA 0.50 PREVERNICIATO', 'GUARDA 0.60 PREVERNICIATO',
+                    'GUARDA 0.70 ZINCATO', 'GUARDA 0.80 ZINCATO',
+                    'GUARDA 1.00 ZINCATO'
+                ],
+                colori: ['RAL 9002', 'RAL 9010', 'RAL 7016', 'RAL 8017', 'RAL 7035', 'RAL 6009']
+            },
+            'SOREN': {
+                descrizioni: [
+                    'SOREN 0.50 ZINCATO', 'SOREN 0.60 ZINCATO',
+                    'SOREN 0.50 PREVERNICIATO', 'SOREN 0.60 PREVERNICIATO',
+                    'SOREN 0.70 ZINCATO', 'SOREN 0.80 ZINCATO',
+                    'SOREN 1.00 ZINCATO'
+                ],
+                colori: ['RAL 9002', 'RAL 9010', 'RAL 7016', 'RAL 8017', 'RAL 7035']
+            },
+            'FERRO': {
+                descrizioni: [
+                    'FERRO 2mm ZINCATO', 'FERRO 3mm ZINCATO',
+                    'FERRO 4mm ZINCATO', 'FERRO 5mm ZINCATO',
+                    'FERRO 6mm ZINCATO', 'FERRO 8mm ZINCATO',
+                    'FERRO 10mm ZINCATO', 'FERRO LAMIERA ZINCATA'
+                ],
+                colori: ['ZINCATO', 'ZINCATO GRIGIO', 'GREZZO']
+            }
+        };
+        
+        // ============================================
+        // CARICAMENTO DATABASE DA SUPABASE
+        // ============================================
+        const SB_URL = "https://vnzrewcbnoqbqvzckome.supabase.co";
+        const SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZuenJld2Nibm9xYnF2emNrb21lIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA5Njk2NDUsImV4cCI6MjA4NjU0NTY0NX0.pdnPyYB4DwEjZ10aF3tGigAjiwLGkP-kx07-15L4ass";
+        
+        let dbArrivi = {
+            fornitori: [],
+            descrizioni: {},
+            colori: {}
+        };
+        
+        // Carica da Supabase
+        async function caricaDBArrivi() {
+            console.log("📡 Carico db_mp_arrivi da Supabase...");
+            try {
+                const res = await fetch(`${SB_URL}/rest/v1/db_mp_arrivi?select=*`, {
+                    headers: {
+                        'apikey': SB_KEY,
+                        'Authorization': `Bearer ${SB_KEY}`
+                    }
+                });
+                const data = await res.json();
+                
+                const fornitoriSet = new Set();
+                const descMap = {};
+                const colorMap = {};
+                
+                data.forEach(row => {
+                    const f = row['Produttore/Fornitore'] || '';
+                    const d = row['Descrizione'] || '';
+                    const c = row['Codice Colore'] || '';
+                    
+                    if (f) {
+                        fornitoriSet.add(f);
+                        if (!descMap[f]) descMap[f] = new Set();
+                        if (!colorMap[f]) colorMap[f] = new Set();
+                        if (d) descMap[f].add(d);
+                        if (c) colorMap[f].add(c);
+                    }
+                });
+                
+                dbArrivi.fornitori = Array.from(fornitoriSet).sort();
+                for (const f in descMap) {
+                    dbArrivi.descrizioni[f] = Array.from(descMap[f]).sort();
+                }
+                for (const f in colorMap) {
+                    dbArrivi.colori[f] = Array.from(colorMap[f]).sort();
+                }
+                
+                console.log("✅ Caricati:", dbArrivi.fornitori.length, "fornitori");
+                aggiornaSelectFornitore();
+            } catch(e) {
+                console.error("❌ Errore:", e);
+            }
+        }
+        
+        function aggiornaSelectFornitore() {
+            const sel = document.getElementById('fornitore');
+            if (!sel) return;
+            sel.innerHTML = '<option value="">Seleziona fornitore...</option>';
+            dbArrivi.fornitori.forEach(f => {
+                const opt = document.createElement('option');
+                opt.value = f;
+                opt.textContent = f;
+                sel.appendChild(opt);
+            });
+        }
+        
+        // Funzioni per ottenere descrizioni e colori da Supabase
+        function getTutteDescrizioni(fornitore) {
+            if (!fornitore) return [];
+            return dbArrivi.descrizioni[fornitore] || [];
+        }
+        
+        function getTuttiColori(fornitore) {
+            if (!fornitore) return [];
+            return dbArrivi.colori[fornitore] || [];
+        }
+        
+        // Avvia caricamento
+        caricaDBArrivi();
+        
+        // ============================================
+        // STATO APPLICAZIONE
+        // ============================================
+        const stato = {
+            step: 1,
+            foto: [],
+            datiOCR: [],
+            rotoli: [],
+            rotoloCorrente: 0,
+            fornitore: '',
+            dataArrivo: '',
+            note: ''
+        };
+        
+        // Inizializza
+        document.getElementById('dataArrivo').valueAsDate = new Date();
+        
+        // ============================================
+        // NAVIGAZIONE STEP
+        // ============================================
+        function vaiAlStep(step) {
+            if (step < stato.step) {
+                // Puoi tornare indietro
+                stato.step = step;
+                aggiornaUI();
+            } else if (step === stato.step + 1) {
+                // Vai avanti solo se validato
+                if (validaStep(stato.step)) {
+                    stato.step++;
+                    aggiornaUI();
+                }
+            }
+        }
+        
+        function validaStep(step) {
+            if (step === 1) {
+                const hasFoto = stato.foto.length > 0;
+                // Abilita/disabilita pulsante step 2
+                const btn = document.getElementById('tab-btn-2');
+                if (btn) btn.disabled = !hasFoto;
+                return hasFoto;
+            }
+            if (step === 2) {
+                return document.getElementById('fornitore').value !== '';
+            }
+            if (step === 3) {
+                // Verifica che tutti i rotoli siano compilati
+                return stato.rotoli.every(r => r.peso > 0 && r.mq > 0);
+            }
+            return true;
+        }
+        
+        function aggiornaUI() {
+            // Aggiorna tabs
+            for (let i = 1; i <= 4; i++) {
+                const tab = document.getElementById(`step-${i}-content`);
+                const btn = document.getElementById(`tab-btn-${i}`);
+                const dot = document.getElementById(`step-${i}`);
+                
+                if (i === stato.step) {
+                    tab.style.display = 'block';
+                    btn.classList.add('active');
+                    btn.disabled = false;
+                    dot.classList.add('active');
+                } else if (i < stato.step) {
+                    tab.style.display = 'none';
+                    btn.classList.remove('active');
+                    btn.disabled = false;
+                    dot.classList.remove('active');
+                    dot.classList.add('completed');
+                } else {
+                    tab.style.display = 'none';
+                    btn.classList.remove('active');
+                    btn.disabled = true;
+                    dot.classList.remove('active', 'completed');
+                }
+            }
+            
+            // Step specifico
+            if (stato.step === 2) {
+                document.getElementById('numRotoli').textContent = stato.foto.length;
+            }
+            if (stato.step === 3) {
+                popolaSelectRotoli();
+            }
+            if (stato.step === 4) {
+                aggiornaRiepilogo();
+            }
+        }
+        
+        // ============================================
+        // GESTIONE FOTO
+        // ============================================
+        function gestisciFotoSelezionate(event) {
+            const files = event.target.files;
+            const grid = document.getElementById('fotoGrid');
+            const btnAnalizza = document.getElementById('btnAnalizza');
+            const tabBtn2 = document.getElementById('tab-btn-2');
+            
+            if (!files || files.length === 0) return;
+            
+            // Mostra subito che qualcosa sta caricando
+            grid.innerHTML = '<div style="text-align:center; padding:20px; color:#666;">Caricamento foto...</div>';
+            
+            let fotoCaricate = 0;
+            const nuoveFoto = [];
+            
+            for (let file of files) {
+                if (stato.foto.some(f => f.nome === file.name)) {
+                    continue; // Skip duplicati
+                }
+                
+                // Usa URL.createObjectURL (più veloce di FileReader)
+                const dataUrl = URL.createObjectURL(file);
+                
+                nuoveFoto.push({
+                    file: file,
+                    dataUrl: dataUrl,
+                    nome: file.name,
+                    elaborata: false
+                });
+                
+                fotoCaricate++;
+            }
+            
+            // Aggiungi le nuove foto allo stato
+            stato.foto.push(...nuoveFoto);
+            
+            console.log("📸 Foto caricate:", stato.foto.length);
+            
+            // Reset input
+            event.target.value = '';
+            
+            // Abilita subito il pulsante avanti
+            if (tabBtn2) {
+                tabBtn2.disabled = false;
+            }
+            
+            // Aggiorna la griglia
+            aggiornaFotoGrid();
+            
+            // Force update UI
+            if (stato.foto.length > 0 && stato.step === 1) {
+                // Il pulsante dovrebbe già essere abilitato dalla validazione
+            }
+        }
+        
+        function aggiornaFotoGrid() {
+            const grid = document.getElementById('fotoGrid');
+            const btnAnalizza = document.getElementById('btnAnalizza');
+            const btnCarica = document.getElementById('btnCaricaFoto');
+            
+            if (!grid) return;
+            
+            if (stato.foto.length === 0) {
+                grid.innerHTML = '<div style="text-align:center; padding:20px; color:#999;">📷 Nessuna foto caricata<br>Clicca il pulsante sopra per caricare</div>';
+                if (btnAnalizza) btnAnalizza.style.display = 'none';
+                return;
+            }
+            
+            if (btnAnalizza) {
+                btnAnalizza.style.display = 'block';
+                btnAnalizza.textContent = `🔍 Analizza ${stato.foto.length} Foto`;
+            }
+            
+            // Mostra anteprima con stile migliorato
+            grid.innerHTML = stato.foto.map((foto, idx) => `
+                <div class="foto-item ${foto.elaborata ? 'processed' : ''}" style="min-height:80px;">
+                    <img src="${foto.dataUrl}" alt="Foto ${idx + 1}" 
+                         style="width:100%;height:80px;object-fit:cover;border-radius:6px;"
+                         onerror="this.style.display='none';this.parentNode.innerHTML='❌ Errore'">
+                    <div class="foto-num" style="position:absolute;bottom:0;left:0;right:0;background:rgba(0,0,0,0.7);color:white;font-size:10px;padding:2px;text-align:center;">
+                        ${foto.elaborata ? '✓' : '#' + (idx + 1)}
+                    </div>
+                </div>
+            `).join('');
+        }
+        
+        // ============================================
+        // OCR CON TESSERACT.JS
+        // ============================================
+        async function analizzaTutteFoto() {
+            if (stato.foto.length === 0) {
+                alert('Carica prima delle foto!');
+                return;
+            }
+            
+            mostraLoading('Analisi OCR in corso...');
+            
+            try {
+                const worker = await Tesseract.createWorker('ita+eng');
+                
+                for (let i = 0; i < stato.foto.length; i++) {
+                    document.getElementById('loading-text').textContent = 
+                        `Analisi foto ${i + 1} di ${stato.foto.length}...`;
+                    document.getElementById('loading-progress').textContent = 
+                        Math.round((i / stato.foto.length) * 100) + '%';
+                    document.getElementById('progress-fill').style.width = 
+                        (i / stato.foto.length * 100) + '%';
+                    
+                    const { data } = await worker.recognize(stato.foto[i].dataUrl);
+                    const dati = estraiDatiOCR(data.text);
+                    
+                    // Crea rotolo con dati estratti
+                    stato.rotoli.push({
+                        ...dati,
+                        nomeFoto: stato.foto[i].nome,
+                        compilato: dati.peso > 0 && dati.mq > 0
+                    });
+                    
+                    stato.foto[i].elaborata = true;
+                }
+                
+                await worker.terminate();
+                
+                // Determina fornitore più frequente
+                const fornitori = {};
+                stato.rotoli.forEach(r => {
+                    if (r.fornitore) {
+                        fornitori[r.fornitore] = (fornitori[r.fornitore] || 0) + 1;
+                    }
+                });
+                const fornitorePiuFrequente = Object.keys(fornitori).sort((a, b) => fornitori[b] - fornitori[a])[0];
+                
+                if (fornitorePiuFrequente) {
+                    document.getElementById('fornitore').value = fornitorePiuFrequente;
+                    document.getElementById('fornitoreEstratto').textContent = fornitorePiuFrequente;
+                    document.getElementById('fornitoreEstratto').style.display = 'inline-block';
+                }
+                
+                nascondiLoading();
+                
+                // Vai automaticamente allo step 2
+                stato.step = 2;
+                aggiornaUI();
+                
+            } catch (error) {
+                nascondiLoading();
+                console.error('Errore OCR:', error);
+                alert('Errore durante l\'analisi OCR. Riprova.');
+            }
+        }
+        
+        function estraiDatiOCR(testo) {
+            // Normalizza il testo
+            const righe = testo.toUpperCase().split('\n').map(r => r.trim()).filter(r => r);
+            const tCompleto = testo.toUpperCase();
+            
+            console.log("📝 OCR Testo:", testo.substring(0, 200));
+            
+            const dati = {
+                codiceBarre: '',
+                peso: 0,
+                mq: 0,
+                fornitore: '',
+                spessore: 0,
+                larghezza: 0,
+                lunghezza: 0,
+                colore: '',
+                descrizione: ''
+            };
+            
+            // Identifica fornitore - cerca in tutto il testo originale
+            const fornitori = ['LAMPRE', 'MARCEGAGLIA', 'ARCELOR', 'NOVELIS', 'ATERA', 'GUARDA', 'SOREN', 'FERRO'];
+            for (let f of fornitori) {
+                if (testo.toUpperCase().includes(f)) {
+                    dati.fornitore = f === 'ARCELOR' ? 'ARCELORMITTAL' : f;
+                    break;
+                }
+            }
+            
+            // Codice a barre - vari formati
+            let bcMatch = tCompleto.match(/S\s*(\d{9,10})/) || 
+                         tCompleto.match(/S(\d{9})/) ||
+                         tCompleto.match(/0(\d{8})/);
+            if (bcMatch) dati.codiceBarre = 'S' + bcMatch[1].replace(/\s/g, '');
+            
+            // MQ - MIGLIORATO
+            let mqMatch = tCompleto.match(/(\d+[.,]\d{1,3})\s*(?:MQ|M2|M²)/i) ||
+                         tCompleto.match(/(?:MQ|M²)[^\d]*(\d+[.,]\d{1,3})/i) ||
+                         tCompleto.match(/(\d+[.,]\d{1,3})\s*M\s*2/i);
+            if (mqMatch) {
+                dati.mq = parseFloat(mqMatch[1].replace(',', '.'));
+            }
+            
+            // Peso - MIGLIORATO
+            let pesoMatch = tCompleto.match(/(\d{4})\s*(?:KG|KG\s*NET|NET)/i) ||
+                           tCompleto.match(/(?:KG|NET)[^\d]*(\d{4})/i) ||
+                           tCompleto.match(/PESO[:\s]*(\d{4})/i);
+            if (pesoMatch) {
+                const peso = parseInt(pesoMatch[1]);
+                if (peso >= 100 && peso <= 9999) dati.peso = peso;
+            }
+            
+            // Spessore - MIGLIORATO (cerca 0,xx o 0.xx)
+            let spessMatch = tCompleto.match(/SPESSORE[:\s]*0?[.,]?(\d{2,3})/i) ||
+                            tCompleto.match(/0[,.](\d{2,3})\s*MM/i) ||
+                            tCompleto.match(/\b0[,.](\d{2})\b/);
+            if (spessMatch) {
+                let res = spessMatch[1].replace(',', '.');
+                if (res.length === 2) res = '0.' + res;
+                dati.spessore = parseFloat(res);
+            }
+            
+            // Larghezza - MIGLIORATO
+            let largMatch = tCompleto.match(/LARGHEZZA[:\s]*(\d{4})/i) ||
+                           tCompleto.match(/\b(1000|1200|1219|1220|1225|1250|1500|2000)\b/);
+            if (largMatch) dati.larghezza = parseInt(largMatch[1]);
+            
+            // Lunghezza
+            let lungMatch = tCompleto.match(/LUNGHEZZA[:\s]*(\d+[.,]?\d{0,2})/i) ||
+                           tCompleto.match(/(\d+[.,]\d{1,2})\s*(?:M|MT|METRI)/i) ||
+                           tCompleto.match(/LUNG\.?[:\s]*(\d+)/i);
+            if (lungMatch) {
+                dati.lunghezza = parseFloat(lungMatch[1].replace(',', '.'));
+            }
+            
+            // Colore
+            const colori = ['BIANCO', 'NERO', 'GRIGIO', 'BLU', 'VERDE', 'ROSSO', 'GIALLO', 'MARRONE', 'NATURALE', 'ANODIZZATO'];
+            for (let c of colori) {
+                if (tCompleto.includes(c)) {
+                    dati.colore = c;
+                    break;
+                }
+            }
+            
+            // Calcola MQ da larghezza e lunghezza se non trovato
+            if (dati.mq === 0 && dati.larghezza > 0 && dati.lunghezza > 0) {
+                dati.mq = Math.round((dati.larghezza / 1000) * dati.lunghezza * 100) / 100;
+            }
+            
+            console.log("📊 Dati estratti:", dati);
+            
+            return dati;
+        }
+        
+        // ============================================
+        // STEP 2 - DATI COMUNI
+        // ============================================
+        function aggiornaDescrizioni() {
+            const fornitore = document.getElementById('fornitore').value;
+            stato.fornitore = fornitore;
+            
+            // Riempi select descrizioni per ogni rotolo
+            stato.rotoli.forEach((rotolo, idx) => {
+                const select = document.createElement('select');
+                select.innerHTML = '<option value="">Seleziona...</option>';
+                
+                if (databaseFornitori[fornitore]) {
+                    databaseFornitori[fornitore].descrizioni.forEach(d => {
+                        const opt = document.createElement('option');
+                        opt.value = d;
+                        opt.textContent = d;
+                        if (rotolo.descrizione === d) opt.selected = true;
+                        select.appendChild(opt);
+                    });
+                }
+            });
+        }
+        
+        // ============================================
+        // STEP 3 - DATI SINGOLI
+        // ============================================
+        function popolaSelectRotoli() {
+            const select = document.getElementById('rotoloCorrente');
+            select.innerHTML = '<option value="">Seleziona rotolo...</option>';
+            
+            stato.rotoli.forEach((rotolo, idx) => {
+                const opt = document.createElement('option');
+                opt.value = idx;
+                opt.textContent = `Rotolo #${idx + 1} ${rotolo.compilato ? '✓' : '⚠️'}`;
+                select.appendChild(opt);
+            });
+            
+            if (stato.rotoli.length > 0 && stato.rotoloCorrente === 0) {
+                select.value = 0;
+                mostraRotoloSelezionato();
+            }
+        }
+        
+        function mostraRotoloSelezionato() {
+            const idx = parseInt(document.getElementById('rotoloCorrente').value);
+            if (isNaN(idx)) {
+                document.getElementById('rotoloForm').style.display = 'none';
+                return;
+            }
+            
+            stato.rotoloCorrente = idx;
+            const rotolo = stato.rotoli[idx];
+            
+            document.getElementById('rotoloForm').style.display = 'block';
+            document.getElementById('rotoloTitolo').textContent = `Rotolo #${idx + 1}`;
+            document.getElementById('rotoloStatus').textContent = rotolo.compilato ? '✓ Compilato' : '⚠️ Da compilare';
+            document.getElementById('rotoloStatus').style.color = rotolo.compilato ? 'var(--success)' : 'var(--warning)';
+            
+            // Popola campi
+            document.getElementById('codiceBarre').value = rotolo.codiceBarre || '';
+            document.getElementById('peso').value = rotolo.peso || '';
+            document.getElementById('mq').value = rotolo.mq || '';
+            document.getElementById('spessore').value = rotolo.spessore || '';
+            document.getElementById('larghezza').value = rotolo.larghezza || '';
+            document.getElementById('lunghezza').value = rotolo.lunghezza || '';
+            
+            // Popola descrizioni (standard + custom)
+            const fornitore = document.getElementById('fornitore').value;
+            const descSelect = document.getElementById('descrizione');
+            const tutteDesc = getTutteDescrizioni(fornitore);
+            
+            descSelect.innerHTML = '<option value="">Seleziona descrizione...</option>';
+            
+            tutteDesc.forEach(d => {
+                const opt = document.createElement('option');
+                opt.value = d;
+                opt.textContent = d;
+                if (rotolo.descrizione === d) opt.selected = true;
+                descSelect.appendChild(opt);
+            });
+            
+            // Se la descrizione corrente non è nella lista, mostrala come option
+            if (rotolo.descrizione && !tutteDesc.includes(rotolo.descrizione)) {
+                const opt = document.createElement('option');
+                opt.value = rotolo.descrizione;
+                opt.textContent = rotolo.descrizione + ' (custom)';
+                opt.selected = true;
+                descSelect.appendChild(opt);
+            }
+            
+            // Popola colori
+            aggiornaColore();
+        }
+        
+        function aggiornaColore() {
+            const fornitore = document.getElementById('fornitore').value;
+            const descrizione = document.getElementById('descrizione').value;
+            const colSelect = document.getElementById('codiceColore');
+            const tuttiColori = getTuttiColori(fornitore);
+            
+            colSelect.innerHTML = '<option value="">Seleziona colore...</option>';
+            
+            tuttiColori.forEach(c => {
+                const opt = document.createElement('option');
+                opt.value = c;
+                opt.textContent = c;
+                colSelect.appendChild(opt);
+            });
+        }
+        
+        function salvaRotoloCorrente() {
+            const idx = stato.rotoloCorrente;
+            const fornitore = document.getElementById('fornitore').value;
+            
+            // Salva dati basic
+            stato.rotoli[idx].codiceBarre = document.getElementById('codiceBarre').value;
+            stato.rotoli[idx].peso = parseInt(document.getElementById('peso').value) || 0;
+            stato.rotoli[idx].mq = parseFloat(document.getElementById('mq').value) || 0;
+            stato.rotoli[idx].spessore = parseFloat(document.getElementById('spessore').value) || 0;
+            stato.rotoli[idx].larghezza = parseInt(document.getElementById('larghezza').value) || 0;
+            stato.rotoli[idx].lunghezza = parseFloat(document.getElementById('lunghezza').value) || 0;
+            
+            // Gestisci descrizione (da select o custom)
+            let descrizione = document.getElementById('descrizione').value;
+            const descCustom = document.getElementById('descrizioneCustom').value.trim();
+            if (descCustom && descCustom.length > 0) {
+                descrizione = descCustom;
+                // Aggiungi alle descrizioni custom se non esiste
+                if (!descrizioniCustom.includes(descrizione)) {
+                    descrizioniCustom.push(descrizione);
+                    console.log("📝 Nuova descrizione custom:", descrizione);
+                }
+            }
+            stato.rotoli[idx].descrizione = descrizione;
+            
+            // Gestisci colore (da select o custom)
+            let colore = document.getElementById('codiceColore').value;
+            const colCustom = document.getElementById('coloreCustom').value.trim();
+            if (colCustom && colCustom.length > 0) {
+                colore = colCustom;
+                // Aggiungi ai colori custom se non esiste
+                if (!coloriCustom.includes(colore)) {
+                    coloriCustom.push(colore);
+                    console.log("🎨 Nuovo colore custom:", colore);
+                }
+            }
+            stato.rotoli[idx].colore = colore;
+            
+            // Propaga descrizione e colore agli altri rotoli se selezionato
+            const propagare = document.getElementById('propagaDati')?.checked;
+            if (propagare) {
+                for (let i = 0; i < stato.rotoli.length; i++) {
+                    if (i !== idx) {
+                        stato.rotoli[i].descrizione = descrizione;
+                        stato.rotoli[i].colore = colore;
+                    }
+                }
+                console.log("📋 Dati propagati a tutti i rotoli");
+            }
+            
+            // Verifica se compilato
+            stato.rotoli[idx].compilato = stato.rotoli[idx].peso > 0 && stato.rotoli[idx].mq > 0;
+            
+            // Vai al prossimo rotolo
+            if (idx < stato.rotoli.length - 1) {
+                document.getElementById('rotoloCorrente').value = idx + 1;
+                mostraRotoloSelezionato();
+            } else {
+                // Verifica se tutti compilati
+                const tuttiCompilati = stato.rotoli.every(r => r.compilato);
+                if (tuttiCompilati) {
+                    stato.step = 4;
+                    aggiornaUI();
+                } else {
+                    alert('Completa tutti i rotoli prima di procedere!');
+                }
+            }
+            
+            popolaSelectRotoli();
+        }
+        
+        // ============================================
+        // STEP 4 - ESPORTAZIONE
+        // ============================================
+        function aggiornaRiepilogo() {
+            let totMQ = 0, totPeso = 0, totLinea1 = 0;
+            
+            stato.rotoli.forEach(r => {
+                totMQ += r.mq || 0;
+                totPeso += r.peso || 0;
+                if (r.larghezza < 2000) totLinea1++;
+            });
+            
+            document.getElementById('totRotoli').textContent = stato.rotoli.length;
+            document.getElementById('totMQ').textContent = totMQ.toFixed(2);
+            document.getElementById('totPeso').textContent = totPeso;
+            document.getElementById('totLinea1').textContent = totLinea1;
+            
+            // Genera tabella
+            const fornitore = document.getElementById('fornitore').value;
+            const dataArrivo = document.getElementById('dataArrivo').value;
+            
+            let tableHTML = `
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Cod.Barre</th>
+                            <th>Peso</th>
+                            <th>MQ</th>
+                            <th>Largh.</th>
+                            <th>Linea</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+            
+            stato.rotoli.forEach((r, idx) => {
+                const linea = r.larghezza < 2000 ? '1' : '2';
+                tableHTML += `
+                    <tr>
+                        <td>${idx + 1}</td>
+                        <td>${r.codiceBarre || '-'}</td>
+                        <td>${r.peso || 0}</td>
+                        <td>${r.mq || 0}</td>
+                        <td>${r.larghezza || 0}</td>
+                        <td>${linea}</td>
+                    </tr>
+                `;
+            });
+            
+            tableHTML += '</tbody></table>';
+            document.getElementById('tabellaPreview').innerHTML = tableHTML;
+        }
+        
+        function esportaExcel() {
+            const fornitore = document.getElementById('fornitore').value;
+            const dataArrivo = document.getElementById('dataArrivo').value;
+            const note = document.getElementById('note').value;
+            
+            // FORMATO RICHIESTO:
+            // Codice a barre | Produttore/Fornitore | Spessore dichiarato | Arrivo | Descrizione | Codice Colore | Peso | Metri Quadri | Terminato | Linea
+            const dati = stato.rotoli.map((r, idx) => ({
+                'Codice a barre': r.codiceBarre || '',
+                'Produttore/Fornitore': fornitore,
+                'Spessore dichiarato': r.spessore || '',
+                'Arrivo': dataArrivo,
+                'Descrizione': r.descrizione || '',
+                'Codice Colore': r.colore || '',
+                'Peso': r.peso || 0,
+                'Metri Quadri': r.mq || 0,
+                'Terminato': '',
+                'Linea': r.larghezza < 2000 ? '1' : '2'
+            }));
+            
+            const ws = XLSX.utils.json_to_sheet(dati);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, 'Arrivi');
+            
+            const nomeFile = `arrivi_${dataArrivo.replace(/-/g, '')}_${Date.now()}.xlsx`;
+            XLSX.writeFile(wb, nomeFile);
+            
+            alert('✅ File Excel scaricato!');
+        }
+        
+        function nuovoCarico() {
+            if (confirm('Vuoi iniziare un nuovo carico?')) {
+                location.reload();
+            }
+        }
+        
+        // ============================================
+        // UTILITY
+        // ============================================
+        function mostraLoading(testo) {
+            document.getElementById('loading-text').textContent = testo;
+            document.getElementById('loading-progress').textContent = '0%';
+            document.getElementById('progress-fill').style.width = '0%';
+            document.getElementById('loading-overlay').style.display = 'flex';
+        }
+        
+        function nascondiLoading() {
+            document.getElementById('loading-overlay').style.display = 'none';
+        }
+    </script>
+</body>
+</html>

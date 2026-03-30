@@ -1,4 +1,9 @@
+# Credenziali e Segreti (MAI caricarli su GitHub)
 chiave_google.json
-.password_hash
+google_key_temp.json
 temp_key.json
+.password_hash
+
+# Python
 __pycache__/
+.env
