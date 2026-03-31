@@ -84,6 +84,7 @@ class NewSupplier(BaseModel):
 
 @app.get("/api/suppliers")
 async def get_suppliers():
+    # Se usi Supabase, qui dovresti fare la query: supabase.table('suppliers').select('*').execute()
     return load_suppliers_list()
 
 @app.post("/api/suppliers")
@@ -92,9 +93,10 @@ async def add_supplier(supplier: NewSupplier):
     name = supplier.name.strip().upper()
     if name and name not in suppliers:
         suppliers.append(name)
+        # Se usi Supabase, qui dovresti fare l'insert: supabase.table('suppliers').insert({"name": name}).execute()
         with open("fornitori.json", "w") as f:
             json.dump(suppliers, f)
-    return suppliers # Restituisce la lista aggiornata
+    return {"status": "success", "message": "Supplier added"}
 
 class Collo(BaseModel):
     barcode: str

@@ -17,12 +17,6 @@
     <!-- SheetJS per Excel -->
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     
-    <!-- Html5-QRCode per scansione QR/Barcode -->
-    <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
-    
-    <!-- QRCode.js per generare QR Code -->
-    <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
-    
     <style>
         :root { 
             --primary: #004a99; 
@@ -432,43 +426,22 @@
             
             <div class="input-group">
                 <label>🏭 Fornitore/Produttore:</label>
-                <div style="display: flex; gap: 10px;">
-                    <select id="fornitore" onchange="aggiornaDescrizioni()" style="flex: 1;">
-                        <option value="">Seleziona...</option>
-                    </select>
-                    <button onclick="mostraModalNuovoFornitore()" style="
-                        background: var(--success);
-                        color: white;
-                        border: none;
-                        border-radius: 10px;
-                        padding: 12px 15px;
-                        font-weight: bold;
-                        cursor: pointer;
-                        font-size: 1.2rem;
-                    " title="Aggiungi nuovo fornitore">
-                        ➕
-                    </button>
-                </div>
+                <select id="fornitore" onchange="aggiornaDescrizioni()">
+                    <option value="">Seleziona...</option>
+                    <option value="LAMPRE">LAMPRE</option>
+                    <option value="MARCEGAGLIA">MARCEGAGLIA</option>
+                    <option value="ARCELORMITTAL">ARCELORMITTAL</option>
+                    <option value="NOVELIS">NOVELIS</option>
+                    <option value="ATERA">ATERA</option>
+                    <option value="GUARDA">GUARDA</option>
+                    <option value="SOREN">SOREN</option>
+                    <option value="ALTRO">ALTRO</option>
+                </select>
             </div>
             
             <div class="input-group">
                 <label>📅 Data Arrivo:</label>
                 <input type="date" id="dataArrivo">
-            </div>
-            
-            <div class="two-cols">
-                <div class="input-group">
-                    <label>📏 Spessore (mm):</label>
-                    <select id="spessoreComune">
-                        <option value="">Seleziona...</option>
-                    </select>
-                </div>
-                <div class="input-group">
-                    <label>↔️ Larghezza (mm):</label>
-                    <select id="larghezzaComune">
-                        <option value="">Seleziona...</option>
-                    </select>
-                </div>
             </div>
             
             <div class="input-group">
@@ -513,44 +486,7 @@
             
             <div class="input-group">
                 <label>📊 Codice a Barre:</label>
-                <div style="display: flex; gap: 10px;">
-                    <input type="text" id="codiceBarre" placeholder="Codice a barre..." style="flex: 1;">
-                    <button onclick="avviaScansione()" style="
-                        background: var(--primary);
-                        color: white;
-                        border: none;
-                        border-radius: 10px;
-                        padding: 12px 15px;
-                        font-weight: bold;
-                        cursor: pointer;
-                        font-size: 1.2rem;
-                    " title="Scansiona QR Code o Codice a Barre">
-                        📷
-                    </button>
-                </div>
-            </div>
-            
-            <div id="scannerContainer" style="display: none; margin: 15px 0;">
-                <div id="reader" style="width: 100%;"></div>
-                <button onclick="chiudiScanner()" class="btn-main btn-secondary" style="margin-top: 10px;">
-                    ❌ Chiudi Scanner
-                </button>
-            </div>
-            
-            <div style="margin: 15px 0;">
-                <button onclick="generaEtichetta()" class="btn-main btn-success" style="width: 100%;">
-                    🏷️ Genera Etichetta
-                </button>
-            </div>
-            
-            <div id="etichettaContainer" style="display: none; margin: 15px 0; padding: 15px; background: white; border: 2px solid var(--primary); border-radius: 12px;">
-                <div id="etichettaContent"></div>
-                <button onclick="stampaEtichetta()" class="btn-main" style="margin-top: 10px;">
-                    🖨️ Stampa Etichetta
-                </button>
-                <button onclick="chiudiEtichetta()" class="btn-main btn-secondary" style="margin-top: 10px;">
-                    ❌ Chiudi
-                </button>
+                <input type="text" id="codiceBarre" placeholder="Codice a barre...">
             </div>
             
             <div class="two-cols">
@@ -646,10 +582,6 @@
         
         <button class="btn-main btn-success" onclick="esportaExcel()">
             📥 Esporta in Excel
-        </button>
-        
-        <button class="btn-main" onclick="esportaEtichette()" style="background: var(--secondary); margin-top: 10px;">
-            🏷️ Esporta Etichette
         </button>
         
         <button class="btn-main" onclick="nuovoCarico()" style="background: var(--secondary);">
@@ -752,9 +684,7 @@
         let dbArrivi = {
             fornitori: [],
             descrizioni: {},
-            colori: {},
-            larghezze: {},
-            spessori: {}
+            colori: {}
         };
         
         // Carica da Supabase
@@ -767,33 +697,23 @@
                         'Authorization': `Bearer ${SB_KEY}`
                     }
                 });
-                console.log("📡 Risposta ricevuta:", res.status);
                 const data = await res.json();
-                console.log("📡 Dati ricevuti:", data.length, "righe");
                 
                 const fornitoriSet = new Set();
                 const descMap = {};
                 const colorMap = {};
-                const larghezzeMap = {};
-                const spessoriMap = {};
                 
                 data.forEach(row => {
                     const f = row['Produttore/Fornitore'] || '';
                     const d = row['Descrizione'] || '';
                     const c = row['Codice Colore'] || '';
-                    const l = row['Larghezza'] || '';
-                    const s = row['Spessore'] || '';
                     
                     if (f) {
                         fornitoriSet.add(f);
                         if (!descMap[f]) descMap[f] = new Set();
                         if (!colorMap[f]) colorMap[f] = new Set();
-                        if (!larghezzeMap[f]) larghezzeMap[f] = new Set();
-                        if (!spessoriMap[f]) spessoriMap[f] = new Set();
                         if (d) descMap[f].add(d);
                         if (c) colorMap[f].add(c);
-                        if (l) larghezzeMap[f].add(l);
-                        if (s) spessoriMap[f].add(s);
                     }
                 });
                 
@@ -804,12 +724,6 @@
                 for (const f in colorMap) {
                     dbArrivi.colori[f] = Array.from(colorMap[f]).sort();
                 }
-                for (const f in larghezzeMap) {
-                    dbArrivi.larghezze[f] = Array.from(larghezzeMap[f]).sort();
-                }
-                for (const f in spessoriMap) {
-                    dbArrivi.spessori[f] = Array.from(spessoriMap[f]).sort();
-                }
                 
                 console.log("✅ Caricati:", dbArrivi.fornitori.length, "fornitori");
                 aggiornaSelectFornitore();
@@ -819,13 +733,8 @@
         }
         
         function aggiornaSelectFornitore() {
-            console.log("🔄 Aggiorna select fornitore...");
             const sel = document.getElementById('fornitore');
-            if (!sel) {
-                console.log("❌ Elemento fornitore non trovato");
-                return;
-            }
-            console.log("✅ Elemento fornitore trovato, aggiorno...");
+            if (!sel) return;
             sel.innerHTML = '<option value="">Seleziona fornitore...</option>';
             dbArrivi.fornitori.forEach(f => {
                 const opt = document.createElement('option');
@@ -833,7 +742,6 @@
                 opt.textContent = f;
                 sel.appendChild(opt);
             });
-            console.log("✅ Select fornitore aggiornata con", dbArrivi.fornitori.length, "fornitori");
         }
         
         // Funzioni per ottenere descrizioni e colori da Supabase
@@ -845,16 +753,6 @@
         function getTuttiColori(fornitore) {
             if (!fornitore) return [];
             return dbArrivi.colori[fornitore] || [];
-        }
-        
-        function getTutteLarghezze(fornitore) {
-            if (!fornitore) return [];
-            return dbArrivi.larghezze[fornitore] || [];
-        }
-        
-        function getTuttiSpessori(fornitore) {
-            if (!fornitore) return [];
-            return dbArrivi.spessori[fornitore] || [];
         }
         
         // Avvia caricamento
@@ -906,8 +804,8 @@
                 return document.getElementById('fornitore').value !== '';
             }
             if (step === 3) {
-                // Verifica che tutti i rotoli siano compilati (almeno peso o mq)
-                return stato.rotoli.every(r => r.peso > 0 || r.mq > 0);
+                // Verifica che tutti i rotoli siano compilati
+                return stato.rotoli.every(r => r.peso > 0 && r.mq > 0);
             }
             return true;
         }
@@ -1203,27 +1101,21 @@
             const fornitore = document.getElementById('fornitore').value;
             stato.fornitore = fornitore;
             
-            // Aggiorna select descrizioni per il rotolo corrente
-            const descSelect = document.getElementById('descrizione');
-            const tutteDesc = getTutteDescrizioni(fornitore);
-            
-            descSelect.innerHTML = '<option value="">Seleziona descrizione...</option>';
-            
-            tutteDesc.forEach(d => {
-                const opt = document.createElement('option');
-                opt.value = d;
-                opt.textContent = d;
-                descSelect.appendChild(opt);
+            // Riempi select descrizioni per ogni rotolo
+            stato.rotoli.forEach((rotolo, idx) => {
+                const select = document.createElement('select');
+                select.innerHTML = '<option value="">Seleziona...</option>';
+                
+                if (databaseFornitori[fornitore]) {
+                    databaseFornitori[fornitore].descrizioni.forEach(d => {
+                        const opt = document.createElement('option');
+                        opt.value = d;
+                        opt.textContent = d;
+                        if (rotolo.descrizione === d) opt.selected = true;
+                        select.appendChild(opt);
+                    });
+                }
             });
-            
-            // Aggiorna anche i colori
-            aggiornaColore();
-            
-            // Aggiorna larghezza e spessore
-            aggiornaLarghezzaSpessore();
-            
-            // Aggiorna spessore e larghezza comune (Step 2)
-            aggiornaSpessoreLarghezzaComune();
         }
         
         // ============================================
@@ -1299,6 +1191,7 @@
         
         function aggiornaColore() {
             const fornitore = document.getElementById('fornitore').value;
+            const descrizione = document.getElementById('descrizione').value;
             const colSelect = document.getElementById('codiceColore');
             const tuttiColori = getTuttiColori(fornitore);
             
@@ -1310,308 +1203,6 @@
                 opt.textContent = c;
                 colSelect.appendChild(opt);
             });
-        }
-        
-        function aggiornaLarghezzaSpessore() {
-            const fornitore = document.getElementById('fornitore').value;
-            const largSelect = document.getElementById('larghezza');
-            const spessSelect = document.getElementById('spessore');
-            const tutteLarg = getTutteLarghezze(fornitore);
-            const tuttiSpess = getTuttiSpessori(fornitore);
-            
-            largSelect.innerHTML = '<option value="">Seleziona larghezza...</option>';
-            spessSelect.innerHTML = '<option value="">Seleziona spessore...</option>';
-            
-            tutteLarg.forEach(l => {
-                const opt = document.createElement('option');
-                opt.value = l;
-                opt.textContent = l;
-                largSelect.appendChild(opt);
-            });
-            
-            tuttiSpess.forEach(s => {
-                const opt = document.createElement('option');
-                opt.value = s;
-                opt.textContent = s;
-                spessSelect.appendChild(opt);
-            });
-        }
-        
-        function aggiornaSpessoreLarghezzaComune() {
-            const fornitore = document.getElementById('fornitore').value;
-            const largComuneSelect = document.getElementById('larghezzaComune');
-            const spessComuneSelect = document.getElementById('spessoreComune');
-            const tutteLarg = getTutteLarghezze(fornitore);
-            const tuttiSpess = getTuttiSpessori(fornitore);
-            
-            largComuneSelect.innerHTML = '<option value="">Seleziona...</option>';
-            spessComuneSelect.innerHTML = '<option value="">Seleziona...</option>';
-            
-            tutteLarg.forEach(l => {
-                const opt = document.createElement('option');
-                opt.value = l;
-                opt.textContent = l;
-                largComuneSelect.appendChild(opt);
-            });
-            
-            tuttiSpess.forEach(s => {
-                const opt = document.createElement('option');
-                opt.value = s;
-                opt.textContent = s;
-                spessComuneSelect.appendChild(opt);
-            });
-        }
-        
-        // ============================================
-        // SCANSIONE QR CODE / CODICE A BARRE
-        // ============================================
-        let html5QrcodeScanner = null;
-        
-        function avviaScansione() {
-            const scannerContainer = document.getElementById('scannerContainer');
-            scannerContainer.style.display = 'block';
-            
-            html5QrcodeScanner = new Html5QrcodeScanner(
-                "reader",
-                { fps: 10, qrbox: { width: 250, height: 250 } },
-                false
-            );
-            
-            html5QrcodeScanner.render(
-                (decodedText) => {
-                    // Successo - codice scansionato
-                    document.getElementById('codiceBarre').value = decodedText;
-                    chiudiScanner();
-                    alert('✅ Codice scansionato: ' + decodedText);
-                },
-                (errorMessage) => {
-                    // Errore - ignora
-                    console.log('Errore scansione:', errorMessage);
-                }
-            );
-        }
-        
-        function chiudiScanner() {
-            if (html5QrcodeScanner) {
-                html5QrcodeScanner.clear();
-                html5QrcodeScanner = null;
-            }
-            document.getElementById('scannerContainer').style.display = 'none';
-        }
-        
-        // ============================================
-        // GENERAZIONE ETICHETTA
-        // ============================================
-        function generaEtichetta() {
-            const fornitore = document.getElementById('fornitore').value;
-            const descrizione = document.getElementById('descrizione').value;
-            const colore = document.getElementById('codiceColore').value;
-            const spessore = document.getElementById('spessore').value;
-            const larghezza = document.getElementById('larghezza').value;
-            const codiceBarre = document.getElementById('codiceBarre').value;
-            const peso = document.getElementById('peso').value;
-            const mq = document.getElementById('mq').value;
-            const dataArrivo = document.getElementById('dataArrivo').value;
-            
-            if (!fornitore) {
-                alert('Seleziona prima un fornitore!');
-                return;
-            }
-            
-            // Genera contenuto etichetta (formato 160mm x 110mm per Zebra ZT230)
-            const etichettaHTML = `
-                <div style="
-                    font-family: 'Segoe UI', sans-serif;
-                    width: 160mm;
-                    height: 110mm;
-                    padding: 5mm;
-                    box-sizing: border-box;
-                    background: white;
-                    border: 1px solid #000;
-                ">
-                    <div style="text-align: center; border-bottom: 2px solid #000; padding-bottom: 3mm; margin-bottom: 3mm;">
-                        <h2 style="margin: 0; font-size: 14pt;">ETICHETTA ROTOLIO</h2>
-                        <p style="margin: 2mm 0 0 0; font-size: 10pt;">PT - Arrivi Merce</p>
-                    </div>
-                    
-                    <div style="margin-bottom: 3mm;">
-                        <div style="display: flex; justify-content: space-between; margin-bottom: 2mm; font-size: 10pt;">
-                            <span style="font-weight: bold;">Fornitore:</span>
-                            <span>${fornitore}</span>
-                        </div>
-                        <div style="display: flex; justify-content: space-between; margin-bottom: 2mm; font-size: 10pt;">
-                            <span style="font-weight: bold;">Descrizione:</span>
-                            <span>${descrizione || '-'}</span>
-                        </div>
-                        <div style="display: flex; justify-content: space-between; margin-bottom: 2mm; font-size: 10pt;">
-                            <span style="font-weight: bold;">Colore:</span>
-                            <span>${colore || '-'}</span>
-                        </div>
-                        <div style="display: flex; justify-content: space-between; margin-bottom: 2mm; font-size: 10pt;">
-                            <span style="font-weight: bold;">Spessore:</span>
-                            <span>${spessore || '-'} mm</span>
-                        </div>
-                        <div style="display: flex; justify-content: space-between; margin-bottom: 2mm; font-size: 10pt;">
-                            <span style="font-weight: bold;">Larghezza:</span>
-                            <span>${larghezza || '-'} mm</span>
-                        </div>
-                        <div style="display: flex; justify-content: space-between; margin-bottom: 2mm; font-size: 10pt;">
-                            <span style="font-weight: bold;">Peso:</span>
-                            <span>${peso || '-'} KG</span>
-                        </div>
-                        <div style="display: flex; justify-content: space-between; margin-bottom: 2mm; font-size: 10pt;">
-                            <span style="font-weight: bold;">MQ:</span>
-                            <span>${mq || '-'} m²</span>
-                        </div>
-                        <div style="display: flex; justify-content: space-between; margin-bottom: 2mm; font-size: 10pt;">
-                            <span style="font-weight: bold;">Data Arrivo:</span>
-                            <span>${dataArrivo || '-'}</span>
-                        </div>
-                    </div>
-                    
-                    <div style="text-align: center; margin-top: 3mm; padding-top: 3mm; border-top: 1px solid #000;">
-                        <div id="qrCodeContainer" style="display: inline-block; padding: 2mm; background: white; border: 1px solid #000;">
-                            <canvas id="qrCodeCanvas"></canvas>
-                        </div>
-                        <p style="margin: 2mm 0 0 0; font-size: 9pt;">${codiceBarre || 'Codice lotto non inserito'}</p>
-                    </div>
-                </div>
-            `;
-            
-            // Apri anteprima in nuova scheda
-            const printWindow = window.open('', '_blank');
-            printWindow.document.write('<html><head><title>Anteprima Etichetta</title></head><body>');
-            printWindow.document.write(etichettaHTML);
-            printWindow.document.write('</body></html>');
-            printWindow.document.close();
-            
-            // Genera QR Code nella nuova scheda
-            const qrData = JSON.stringify({
-                fornitore: fornitore,
-                descrizione: descrizione,
-                colore: colore,
-                spessore: spessore,
-                larghezza: larghezza,
-                codiceBarre: codiceBarre || '',
-                peso: peso,
-                mq: mq,
-                dataArrivo: dataArrivo
-            });
-            
-            QRCode.toCanvas(
-                printWindow.document.getElementById('qrCodeCanvas'),
-                qrData,
-                {
-                    width: 120,
-                    margin: 1,
-                    color: {
-                        dark: '#000000',
-                        light: '#ffffff'
-                    }
-                },
-                function(error) {
-                    if (error) console.error('Errore generazione QR:', error);
-                }
-            );
-        }
-        
-        function stampaEtichetta() {
-            const etichettaContent = document.getElementById('etichettaContent').innerHTML;
-            const printWindow = window.open('', '', 'width=600,height=600');
-            printWindow.document.write('<html><head><title>Etichetta Rotolio</title></head><body>');
-            printWindow.document.write(etichettaContent);
-            printWindow.document.write('</body></html>');
-            printWindow.document.close();
-            printWindow.print();
-        }
-        
-        function chiudiEtichetta() {
-            document.getElementById('etichettaContainer').style.display = 'none';
-        }
-        
-        // ============================================
-        // AGGIUNGI NUOVO FORNITORE A SUPABASE
-        // ============================================
-        async function aggiungiFornitoreSupabase() {
-            console.log("➕ Aggiungi fornitore...");
-            const fornitore = document.getElementById('nuovoFornitore').value.trim().toUpperCase();
-            const descrizione = document.getElementById('nuovaDescrizione').value.trim();
-            const colore = document.getElementById('nuovoColore').value.trim();
-            console.log("➕ Dati fornitore:", { fornitore, descrizione, colore });
-            
-            if (!fornitore) {
-                alert('Inserisci il nome del fornitore!');
-                return;
-            }
-            
-            if (!descrizione) {
-                alert('Inserisci la descrizione!');
-                return;
-            }
-            
-            if (!colore) {
-                alert('Inserisci il codice colore!');
-                return;
-            }
-            
-            try {
-                mostraLoading('Aggiunta fornitore in corso...');
-                
-                const res = await fetch(`${SB_URL}/rest/v1/db_mp_arrivi`, {
-                    method: 'POST',
-                    headers: {
-                        'apikey': SB_KEY,
-                        'Authorization': `Bearer ${SB_KEY}`,
-                        'Content-Type': 'application/json',
-                        'Prefer': 'return=representation'
-                    },
-                    body: JSON.stringify({
-                        'Produttore/Fornitore': fornitore,
-                        'Descrizione': descrizione,
-                        'Codice Colore': colore
-                    })
-                });
-                
-                if (res.ok) {
-                    console.log("✅ Fornitore aggiunto, ricarico database...");
-                    // Ricarica il database
-                    await caricaDBArrivi();
-                    
-                    // Seleziona il nuovo fornitore
-                    document.getElementById('fornitore').value = fornitore;
-                    stato.fornitore = fornitore;
-                    
-                    // Aggiorna le tendine
-                    aggiornaDescrizioni();
-                    console.log("✅ Fornitore selezionato e tendine aggiornate");
-                    
-                    // Pulisci i campi
-                    document.getElementById('nuovoFornitore').value = '';
-                    document.getElementById('nuovaDescrizione').value = '';
-                    document.getElementById('nuovoColore').value = '';
-                    
-                    // Chiudi il modal
-                    document.getElementById('modalNuovoFornitore').style.display = 'none';
-                    
-                    nascondiLoading();
-                    alert('✅ Fornitore aggiunto con successo!');
-                } else {
-                    nascondiLoading();
-                    alert('❌ Errore durante l\'aggiunta del fornitore');
-                }
-            } catch (e) {
-                nascondiLoading();
-                console.error('Errore:', e);
-                alert('❌ Errore di connessione');
-            }
-        }
-        
-        function mostraModalNuovoFornitore() {
-            document.getElementById('modalNuovoFornitore').style.display = 'flex';
-        }
-        
-        function nascondiModalNuovoFornitore() {
-            document.getElementById('modalNuovoFornitore').style.display = 'none';
         }
         
         function salvaRotoloCorrente() {
@@ -1652,20 +1243,16 @@
             }
             stato.rotoli[idx].colore = colore;
             
-            // Propaga descrizione, colore, larghezza e spessore agli altri rotoli se selezionato
+            // Propaga descrizione e colore agli altri rotoli se selezionato
             const propagare = document.getElementById('propagaDati')?.checked;
             if (propagare) {
-                const larghezza = stato.rotoli[idx].larghezza;
-                const spessore = stato.rotoli[idx].spessore;
                 for (let i = 0; i < stato.rotoli.length; i++) {
                     if (i !== idx) {
                         stato.rotoli[i].descrizione = descrizione;
                         stato.rotoli[i].colore = colore;
-                        stato.rotoli[i].larghezza = larghezza;
-                        stato.rotoli[i].spessore = spessore;
                     }
                 }
-                console.log("📋 Dati propagati a tutti i rotoli (descrizione, colore, larghezza, spessore)");
+                console.log("📋 Dati propagati a tutti i rotoli");
             }
             
             // Verifica se compilato
@@ -1773,186 +1360,6 @@
             alert('✅ File Excel scaricato!');
         }
         
-        function esportaEtichette() {
-            const fornitore = document.getElementById('fornitore').value;
-            const dataArrivo = document.getElementById('dataArrivo').value;
-            
-            if (!fornitore) {
-                alert('Seleziona prima un fornitore!');
-                return;
-            }
-            
-            // Genera etichette per tutti i rotoli
-            let etichetteHTML = `
-                <html>
-                <head>
-                    <title>Etichette Rotoli - ${dataArrivo}</title>
-                    <style>
-                        @page {
-                            size: 160mm 110mm;
-                            margin: 0;
-                        }
-                        body {
-                            font-family: 'Segoe UI', sans-serif;
-                            margin: 0;
-                            padding: 0;
-                        }
-                        .etichetta {
-                            width: 160mm;
-                            height: 110mm;
-                            padding: 5mm;
-                            box-sizing: border-box;
-                            background: white;
-                            border: 1px solid #000;
-                            page-break-after: always;
-                        }
-                        .etichetta:last-child {
-                            page-break-after: avoid;
-                        }
-                        .header {
-                            text-align: center;
-                            border-bottom: 2px solid #000;
-                            padding-bottom: 3mm;
-                            margin-bottom: 3mm;
-                        }
-                        .header h2 {
-                            margin: 0;
-                            font-size: 14pt;
-                        }
-                        .header p {
-                            margin: 2mm 0 0 0;
-                            font-size: 10pt;
-                        }
-                        .dati {
-                            margin-bottom: 3mm;
-                        }
-                        .riga {
-                            display: flex;
-                            justify-content: space-between;
-                            margin-bottom: 2mm;
-                            font-size: 10pt;
-                        }
-                        .riga span:first-child {
-                            font-weight: bold;
-                        }
-                        .qr-container {
-                            text-align: center;
-                            margin-top: 3mm;
-                            padding-top: 3mm;
-                            border-top: 1px solid #000;
-                        }
-                        .qr-code {
-                            display: inline-block;
-                            padding: 2mm;
-                            background: white;
-                            border: 1px solid #000;
-                        }
-                        .codice-lotto {
-                            margin: 2mm 0 0 0;
-                            font-size: 9pt;
-                        }
-                    </style>
-                </head>
-                <body>
-            `;
-            
-            stato.rotoli.forEach((rotolo, idx) => {
-                etichetteHTML += `
-                    <div class="etichetta">
-                        <div class="header">
-                            <h2>ETICHETTA ROTOLIO</h2>
-                            <p>PT - Arrivi Merce</p>
-                        </div>
-                        
-                        <div class="dati">
-                            <div class="riga">
-                                <span>Fornitore:</span>
-                                <span>${fornitore}</span>
-                            </div>
-                            <div class="riga">
-                                <span>Descrizione:</span>
-                                <span>${rotolo.descrizione || '-'}</span>
-                            </div>
-                            <div class="riga">
-                                <span>Colore:</span>
-                                <span>${rotolo.colore || '-'}</span>
-                            </div>
-                            <div class="riga">
-                                <span>Spessore:</span>
-                                <span>${rotolo.spessore || '-'} mm</span>
-                            </div>
-                            <div class="riga">
-                                <span>Larghezza:</span>
-                                <span>${rotolo.larghezza || '-'} mm</span>
-                            </div>
-                            <div class="riga">
-                                <span>Peso:</span>
-                                <span>${rotolo.peso || '-'} KG</span>
-                            </div>
-                            <div class="riga">
-                                <span>MQ:</span>
-                                <span>${rotolo.mq || '-'} m²</span>
-                            </div>
-                            <div class="riga">
-                                <span>Data Arrivo:</span>
-                                <span>${dataArrivo || '-'}</span>
-                            </div>
-                        </div>
-                        
-                        <div class="qr-container">
-                            <div class="qr-code">
-                                <canvas id="qrCanvas${idx}" width="120" height="120"></canvas>
-                            </div>
-                            <p class="codice-lotto">${rotolo.codiceBarre || 'Codice lotto non inserito'}</p>
-                        </div>
-                    </div>
-                `;
-            });
-            
-            etichetteHTML += `
-                </body>
-                </html>
-            `;
-            
-            // Apri nuova finestra con tutte le etichette
-            const printWindow = window.open('', '_blank');
-            printWindow.document.write(etichetteHTML);
-            printWindow.document.close();
-            
-            // Genera QR code per ogni etichetta
-            stato.rotoli.forEach((rotolo, idx) => {
-                const qrData = JSON.stringify({
-                    fornitore: fornitore,
-                    descrizione: rotolo.descrizione || '',
-                    colore: rotolo.colore || '',
-                    spessore: rotolo.spessore || '',
-                    larghezza: rotolo.larghezza || '',
-                    codiceBarre: rotolo.codiceBarre || '',
-                    peso: rotolo.peso || '',
-                    mq: rotolo.mq || '',
-                    dataArrivo: dataArrivo
-                });
-                
-                QRCode.toCanvas(
-                    printWindow.document.getElementById(`qrCanvas${idx}`),
-                    qrData,
-                    {
-                        width: 120,
-                        margin: 1,
-                        color: {
-                            dark: '#000000',
-                            light: '#ffffff'
-                        }
-                    },
-                    function(error) {
-                        if (error) console.error('Errore generazione QR:', error);
-                    }
-                );
-            });
-            
-            alert('✅ Etichette generate! Usa Ctrl+P per stampare o salvare come PDF');
-        }
-        
         function nuovoCarico() {
             if (confirm('Vuoi iniziare un nuovo carico?')) {
                 location.reload();
@@ -1972,59 +1379,6 @@
         function nascondiLoading() {
             document.getElementById('loading-overlay').style.display = 'none';
         }
-        
-        // ============================================
-        // MODAL AGGIUNGI NUOVO FORNITORE
-        // ============================================
-        const modalHTML = `
-        <div id="modalNuovoFornitore" style="
-            display: none;
-            position: fixed;
-            top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.7);
-            z-index: 10000;
-            justify-content: center;
-            align-items: center;
-            padding: 20px;
-        ">
-            <div style="
-                background: white;
-                border-radius: 16px;
-                padding: 25px;
-                max-width: 400px;
-                width: 100%;
-                box-shadow: 0 10px 40px rgba(0,0,0,0.3);
-            ">
-                <h3 style="margin-top: 0; color: var(--primary);">➕ Aggiungi Nuovo Fornitore</h3>
-                
-                <div class="input-group">
-                    <label>🏭 Nome Fornitore/Produttore:</label>
-                    <input type="text" id="nuovoFornitore" placeholder="Es. LAMPRE, MARCEGAGLIA...">
-                </div>
-                
-                <div class="input-group">
-                    <label>📝 Descrizione:</label>
-                    <input type="text" id="nuovaDescrizione" placeholder="Es. LAMPRE 0.50 ZINCATO">
-                </div>
-                
-                <div class="input-group">
-                    <label>🎨 Codice Colore:</label>
-                    <input type="text" id="nuovoColore" placeholder="Es. RAL 9002">
-                </div>
-                
-                <div style="display: flex; gap: 10px; margin-top: 20px;">
-                    <button onclick="aggiungiFornitoreSupabase()" class="btn-main btn-success" style="flex: 1;">
-                        ✅ Salva
-                    </button>
-                    <button onclick="nascondiModalNuovoFornitore()" class="btn-main btn-secondary" style="flex: 1;">
-                        ❌ Annulla
-                    </button>
-                </div>
-            </div>
-        </div>
-        `;
-        
-        document.body.insertAdjacentHTML('beforeend', modalHTML);
     </script>
 </body>
 </html>
