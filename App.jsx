@@ -50,18 +50,8 @@ function App() {
   const [isScanning, setIsScanning] = useState(null); // Indice del collo in scansione
   const [loading, setLoading] = useState(false);
 
-  // Funzione per caricare i fornitori in modo pulito
-  const fetchSuppliers = async () => {
-    const res = await axios.get(`${API_BASE}/suppliers`);
-    // Se il backend restituisce oggetti da Supabase, estraiamo solo il nome
-    const list = Array.isArray(res.data) && typeof res.data[0] === 'object' 
-      ? res.data.map(s => s.name || s.nome) 
-      : res.data;
-    setSuppliers(list);
-  };
-
   useEffect(() => {
-    fetchSuppliers();
+    axios.get(`${API_BASE}/suppliers`).then(res => setSuppliers(res.data));
   }, []);
 
   // Step 1: Upload Foto
@@ -105,13 +95,10 @@ function App() {
   const handleSaveNewSupplier = async () => {
     if (newSupplierName) {
       try {
-        await axios.post(`${API_BASE}/suppliers`, { name: newSupplierName.trim().upper() });
-        
-        // Ricarichiamo la lista completa dal server per essere sicuri della sincronizzazione
-        await fetchSuppliers();
-        
-        // Selezioniamo il nuovo fornitore appena creato
-        setCommonData(prev => ({...prev, fornitore: newSupplierName.toUpperCase()}));
+        const res = await axios.post(`${API_BASE}/suppliers`, { name: newSupplierName });
+        setSuppliers(res.data); // Aggiorna la lista con quella tornata dal server
+        const savedName = newSupplierName.toUpperCase();
+        setCommonData(prev => ({...prev, fornitore: savedName}));
         setNewSupplierName('');
       } catch (err) {
         alert("Errore nel salvataggio del fornitore");
