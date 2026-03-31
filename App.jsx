@@ -1,11 +1,18 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { Html5QrcodeScanner } from 'html5-qrcode';
+import { createClient } from '@supabase/supabase-js';
+import * as XLSX from 'xlsx';
 
-const API_BASE = "https://tuo-backend-su-render.com/api"; // Cambia questo dopo il deploy
+// Configurazione DIRETTA Supabase
+const supabaseUrl = 'https://vnzrewcbnoqbqvzckome.supabase.co';
+const supabaseKey = 'sb_publishable_Sq9txbu-PmKdbxETSx2cjw_WqWEFBPO'; // La trovi nelle impostazioni API di Supabase
+const supabase = createClient(supabaseUrl, supabaseKey);
+
+const API_BASE = "https://tuo-backend-ocr.onrender.com/api"; // Solo per OCR
 
 // Liste predefinite richieste dall'utente
-const SPESSORI_LIST = [0.06, 0.08, 0.1, 0.2, 0.3, 0.38, 0.4, 0.45, 0.48, 0.5, 0.55, 0.58, 0.6, 0.65, 0.68, 0.7, 0.75, 0.78, 0.8, 1];
+const SPESSORI_LIST = [0.06, 0.08, 0.1, 0.2, 0.3, 0.38, 0.4, 0.45, 0.48, 0.5, 0.55, 0.58, 0.6, 0.65, 0.68, 0.7, 0.75, 0.78, 0.8, 1.0];
 const LARGHEZZE_LIST = [1060, 1200, 1225, 1250, 2400];
 
 // Funzione helper per comprimere e ridimensionare le immagini lato client
@@ -57,8 +64,16 @@ function App() {
   // Carica i fornitori dal database all'avvio
   const loadSuppliers = async () => {
     try {
-      const res = await axios.get(`${API_BASE}/suppliers`);
-      setSuppliers(Array.isArray(res.data) ? res.data : []);
+      // Query diretta a Supabase sulla tabella db_mp_arrivi
+      const { data, error } = await supabase
+        .from('db_mp_arrivi')
+        .select('Produttore/Fornitore');
+      
+      if (error) throw error;
+
+      const rawNames = data.map(item => item['Produttore/Fornitore']?.toString().trim().toUpperCase());
+      const uniqueNames = [...new Set(rawNames.filter(n => n))].sort();
+      setSuppliers(uniqueNames);
     } catch (err) {
       console.error("Errore caricamento fornitori", err);
     }
@@ -110,28 +125,44 @@ function App() {
     const nameToSave = newSupplierName.toUpperCase().trim();
     if (nameToSave) {
       try {
-        const res = await axios.post(`${API_BASE}/suppliers`, { name: nameToSave });
-        if (Array.isArray(res.data)) {
-          setSuppliers(res.data);
-        }
+        // Inserimento diretto in Supabase
+        const { error } = await supabase
+          .from('db_mp_arrivi')
+          .insert([{ 'Produttore/Fornitore': nameToSave }]);
+
+        if (error) throw error;
+
+        await loadSuppliers();
         setCommonData(prev => ({...prev, fornitore: nameToSave}));
         setNewSupplierName('');
       } catch (err) {
-        console.error(err);
-        alert("Errore nel salvataggio del fornitore");
+        console.error("Errore salvataggio:", err);
+        alert("Errore nel salvataggio. Verifica i permessi della tabella.");
       }
     }
   };
 
-  const exportExcel = async () => {
-    const payload = { ...commonData, colli };
-    const res = await axios.post(`${API_BASE}/export`, payload, { responseType: 'blob' });
-    const url = window.URL.createObjectURL(new Blob([res.data]));
-    const link = document.createElement('a');
-    link.href = url;
-    link.setAttribute('download', `arrivi_${commonData.data_arrivo}.xlsx`);
-    document.body.appendChild(link);
-    link.click();
+  // Esporta in Excel direttamente dal Browser (senza backend)
+  const exportExcel = () => {
+    const rows = colli.map(c => ({
+      'Codice a barre': c.barcode,
+      'Produttore/Fornitore': commonData.fornitore,
+      'Spessore dichiarato': commonData.spessore,
+      'Arrivo': commonData.data_arrivo,
+      'Descrizione': commonData.descrizione,
+      'Codice Colore': commonData.colore,
+      'Peso': c.peso,
+      'Metri Quadri': c.mq,
+      'Terminato': commonData.terminato,
+      'Linea': commonData.linea,
+      'Larghezza': commonData.larghezza,
+      'Foto Originale': c.nome_foto
+    }));
+
+    const worksheet = XLSX.utils.json_to_sheet(rows);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Arrivi");
+    XLSX.writeFile(workbook, `arrivi_${commonData.data_arrivo}.xlsx`);
   };
 
   return (
@@ -210,10 +241,12 @@ function App() {
               <select 
                 className="w-full p-2 border rounded" 
                 value={commonData.spessore} 
-                onChange={e => setCommonData({...commonData, spessore: parseFloat(e.target.value)})}
+                onChange={e => setCommonData({...commonData, spessore: e.target.value})}
               >
-                <option value="">Seleziona...</option>
-                {SPESSORI_LIST.map(s => <option key={s} value={s}>{s} mm</option>)}
+                <option value="">Seleziona spessore...</option>
+                {SPESSORI_LIST.map(s => (
+                  <option key={s} value={s}>{s} mm</option>
+                ))}
               </select>
             </div>
             <div>
@@ -221,10 +254,12 @@ function App() {
               <select 
                 className="w-full p-2 border rounded" 
                 value={commonData.larghezza} 
-                onChange={e => setCommonData({...commonData, larghezza: parseInt(e.target.value)})}
+                onChange={e => setCommonData({...commonData, larghezza: e.target.value})}
               >
-                <option value="">Seleziona...</option>
-                {LARGHEZZE_LIST.map(l => <option key={l} value={l}>{l} mm</option>)}
+                <option value="">Seleziona larghezza...</option>
+                {LARGHEZZE_LIST.map(l => (
+                  <option key={l} value={l}>{l} mm</option>
+                ))}
               </select>
             </div>
             <div>

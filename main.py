@@ -33,7 +33,7 @@ elif "GOOGLE_CREDENTIALS_JSON" in os.environ:
     os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "google_key_temp.json"
 
 # Inizializzazione client Supabase (usando variabili d'ambiente)
-url: str = os.environ.get("SUPABASE_URL")
+url: str = os.environ.get("SUPABASE_URL", "https://vnzrewcbnoqbqvzckome.supabase.co")
 key: str = os.environ.get("SUPABASE_KEY")
 supabase: Client = create_client(url, key) if url and key else None
 
@@ -87,11 +87,14 @@ async def get_suppliers():
         return []
     
     try:
-        # Recupera i nomi dalla colonna 'Produttore/Fornitore' della tabella 'db_mp_arrivi'
+        # Query alla tabella corretta fornita dall'utente
         response = supabase.table("db_mp_arrivi").select("Produttore/Fornitore").execute()
-        # Normalizziamo in maiuscolo e puliamo gli spazi per evitare duplicati "simili" (es. Marcegaglia vs marcegaglia)
-        raw_list = [str(item['Produttore/Fornitore']).strip().upper() for item in response.data if item.get('Produttore/Fornitore')]
-        suppliers = sorted(list(set(raw_list)))
+        
+        # Estrazione e normalizzazione: rimuoviamo duplicati e gestiamo maiuscole/minuscole
+        raw_names = [str(row.get('Produttore/Fornitore', '')).strip().upper() for row in response.data]
+        # Filtriamo i nomi vuoti e creiamo una lista unica ordinata
+        suppliers = sorted(list(set([n for n in raw_names if n])))
+        
         return suppliers
     except Exception as e:
         print(f"Errore query Supabase: {e}")
@@ -105,10 +108,10 @@ async def add_supplier(supplier: NewSupplier):
     name = supplier.name.strip().upper()
     if name:
         try:
-            # Inserimento nella tabella e colonna corretta (db_mp_arrivi)
+            # Inserimento nella tabella db_mp_arrivi come richiesto
             supabase.table("db_mp_arrivi").insert({"Produttore/Fornitore": name}).execute()
         except Exception as e:
-            print(f"Errore o duplicato: {e}")
+            print(f"Nota: Errore inserimento fornitore: {e}")
             
     return await get_suppliers()
 
