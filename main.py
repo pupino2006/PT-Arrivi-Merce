@@ -86,16 +86,25 @@ async def get_suppliers():
     if not supabase:
         return []
     
+    all_data = []
+    page = 0
+    page_size = 1000
+    
     try:
-        # Query alla tabella corretta fornita dall'utente
-        response = supabase.table("db_mp_arrivi").select("Produttore/Fornitore").execute()
+        while True:
+            start = page * page_size
+            end = start + page_size - 1
+            response = supabase.table("db_mp_arrivi").select("Produttore/Fornitore").range(start, end).execute()
+            
+            if not response.data:
+                break
+            all_data.extend(response.data)
+            if len(response.data) < page_size:
+                break
+            page += 1
         
-        # Estrazione e normalizzazione: rimuoviamo duplicati e gestiamo maiuscole/minuscole
-        raw_names = [str(row.get('Produttore/Fornitore', '')).strip().upper() for row in response.data]
-        # Filtriamo i nomi vuoti e creiamo una lista unica ordinata
-        suppliers = sorted(list(set([n for n in raw_names if n])))
-        
-        return suppliers
+        raw_names = [str(row.get('Produttore/Fornitore', '')).strip().upper() for row in all_data]
+        return sorted(list(set([n for n in raw_names if n])))
     except Exception as e:
         print(f"Errore query Supabase: {e}")
         return []

@@ -46,6 +46,8 @@ const compressImage = (file) => {
 function App() {
   const [step, setStep] = useState(1);
   const [suppliers, setSuppliers] = useState([]);
+  const [thicknesses, setThicknesses] = useState(SPESSORI_LIST);
+  const [widths, setWidths] = useState(LARGHEZZE_LIST);
   const [commonData, setCommonData] = useState({
     fornitore: '',
     descrizione: 'Acciaio Zincato',
@@ -64,17 +66,44 @@ function App() {
   // Carica i fornitori dal database all'avvio
   const loadSuppliers = async () => {
     if (!supabase) return;
-    try {
-      // Query diretta a Supabase sulla tabella db_mp_arrivi
-      const { data, error } = await supabase
-        .from('db_mp_arrivi')
-        .select('Produttore/Fornitore');
-      
-      if (error) throw error;
+    let allData = [];
+    let page = 0;
+    const pageSize = 1000;
 
-      const rawNames = data.map(item => item['Produttore/Fornitore']?.toString().trim().toUpperCase()).filter(Boolean);
-      const uniqueNames = [...new Set(rawNames.filter(n => n))].sort();
-      setSuppliers(uniqueNames);
+    try {
+      // Ciclo per recuperare TUTTE le righe (oltre il limite di 1000)
+      while (true) {
+        const { data, error } = await supabase
+          .from('db_mp_arrivi')
+          .select('Produttore/Fornitore, "Spessore dichiarato", Larghezza')
+          .range(page * pageSize, (page + 1) * pageSize - 1);
+
+        if (error) throw error;
+        if (!data || data.length === 0) break;
+
+        allData = allData.concat(data);
+        if (data.length < pageSize) break;
+        page++;
+      }
+
+      // 1. Scrematura Fornitori (Maiuscolo e Univoci)
+      const uniqueSuppliers = [...new Set(allData.map(item => 
+        item['Produttore/Fornitore']?.toString().trim().toUpperCase()
+      ).filter(Boolean))].sort();
+      setSuppliers(uniqueSuppliers);
+
+      // 2. Scrematura Spessori (Numerici e Univoci)
+      const uniqueSpessori = [...new Set(allData.map(item => 
+        parseFloat(item['Spessore dichiarato'])
+      ).filter(n => !isNaN(n)))].sort((a, b) => a - b);
+      if (uniqueSpessori.length > 0) setThicknesses(uniqueSpessori);
+
+      // 3. Scrematura Larghezze (Numerici e Univoci)
+      const uniqueLarghezze = [...new Set(allData.map(item => 
+        parseInt(item['Larghezza'])
+      ).filter(n => !isNaN(n)))].sort((a, b) => a - b);
+      if (uniqueLarghezze.length > 0) setWidths(uniqueLarghezze);
+
     } catch (err) {
       console.error("Errore caricamento fornitori", err);
     }
@@ -245,8 +274,8 @@ function App() {
                 onChange={e => setCommonData({...commonData, spessore: e.target.value})}
               >
                 <option value="">Seleziona spessore...</option>
-                {SPESSORI_LIST.map(s => (
-                  <option key={s} value={s}>{s} mm</option>
+                {thicknesses.map(s => (
+                  <option key={s} value={s}>{s.toFixed(2)} mm</option>
                 ))}
               </select>
             </div>
@@ -258,7 +287,7 @@ function App() {
                 onChange={e => setCommonData({...commonData, larghezza: e.target.value})}
               >
                 <option value="">Seleziona larghezza...</option>
-                {LARGHEZZE_LIST.map(l => (
+                {widths.map(l => (
                   <option key={l} value={l}>{l} mm</option>
                 ))}
               </select>
