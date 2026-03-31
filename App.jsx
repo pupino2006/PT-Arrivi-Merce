@@ -43,8 +43,8 @@ function App() {
     fornitore: '',
     descrizione: 'Acciaio Zincato',
     colore: 'RAL 9002',
-    spessore: 0.5,
-    larghezza: 1250,
+    spessore: '',
+    larghezza: '',
     data_arrivo: new Date().toISOString().split('T')[0],
     terminato: 'NO',
     linea: ''
@@ -54,9 +54,18 @@ function App() {
   const [isScanning, setIsScanning] = useState(null); // Indice del collo in scansione
   const [loading, setLoading] = useState(false);
 
+  // Carica i fornitori dal database all'avvio
+  const loadSuppliers = async () => {
+    try {
+      const res = await axios.get(`${API_BASE}/suppliers`);
+      setSuppliers(Array.isArray(res.data) ? res.data : []);
+    } catch (err) {
+      console.error("Errore caricamento fornitori", err);
+    }
+  };
+
   useEffect(() => {
-    axios.get(`${API_BASE}/suppliers`).then(res => setSuppliers(res.data));
-  }, []);
+    []);
 
   // Step 1: Upload Foto
   const handleUpload = async (e) => {
@@ -102,14 +111,10 @@ function App() {
       try {
         const res = await axios.post(`${API_BASE}/suppliers`, { name: nameToSave });
         
-        // Aggiorniamo la lista locale con la risposta del server (che è la lista completa)
-        if (Array.isArray(res.data)) {
-          setSuppliers(res.data);
-        }
 
+        }
         setCommonData(prev => ({...prev, fornitore: nameToSave}));
         setNewSupplierName('');
-      } catch (err) {
         alert("Errore nel salvataggio del fornitore");
       }
     }
@@ -177,11 +182,10 @@ function App() {
                     onChange={e => setNewSupplierName(e.target.value)}
                   />
                   <button 
-                    onClick={handleSaveNewSupplier}
+                    onClick={(e) => { e.preventDefault(); handleSaveNewSupplier(); }}
                     className="bg-green-600 text-white px-4 rounded font-bold hover:bg-green-700 transition-colors"
                   >
                     Salva
-                  </button>
                 </div>
               )}
             </div>
@@ -199,35 +203,19 @@ function App() {
             </div>
             <div>
               <label className="block text-sm font-medium">Spessore dichiarato (mm)</label>
-              <select 
-                className="w-full p-2 border rounded" 
-                value={commonData.spessore} 
-                onChange={e => setCommonData({...commonData, spessore: parseFloat(e.target.value)})}
-              >
-                {SPESSORI_LIST.map(s => <option key={s} value={s}>{s} mm</option>)}
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-medium">Larghezza dichiarata (mm)</label>
-              <select 
-                className="w-full p-2 border rounded" 
-                value={commonData.larghezza} 
-                onChange={e => setCommonData({...commonData, larghezza: parseInt(e.target.value)})}
-              >
-                {LARGHEZZE_LIST.map(l => <option key={l} value={l}>{l} mm</option>)}
-              </select>
+              <select className="w-full p-2 border rounded" value={commonData.spessore} onChange={e => setCommonData({...commonData, spessore: e.target.value})}>
+                <option value="">Seleziona...</option>
+                {SPESSORI_LIST.map(s => (
+                  <option key={s} value={s}>{s} mm</option>
+                ))}/select> v>><label className="block text-sm font-medium">Larghezza dichiarata (mm)</label>
+              <select className="w-full p-rounded" value={commonData.larghezza} onChange={e => setCommonData({...commonData, larghezza: e.target.value})}>
+                <option value="">SeE
+                o lect>
             </div>
             <div>
               <label className="block text-sm font-medium">Terminato</label>
               <input type="text" className="w-full p-2 border rounded" value={commonData.terminato} onChange={e => setCommonData({...commonData, terminato: e.target.value})} />
             </div>
-            <div>
-              <label className="block text-sm font-medium">Linea</label>
-              <input type="text" className="w-full p-2 border rounded" value={commonData.linea} onChange={e => setCommonData({...commonData, linea: e.target.value})} />
-            </div>
-          </div>
-          <button onClick={() => setStep(3)} className="w-full bg-blue-700 text-white py-3 rounded-lg font-bold">Avanti ➡️</button>
-        </div>
       )}
 
       {/* STEP 3 */}

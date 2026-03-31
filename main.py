@@ -84,28 +84,30 @@ class NewSupplier(BaseModel):
 @app.get("/api/suppliers")
 async def get_suppliers():
     if not supabase:
-        return ["ERRORE: Supabase non configurato"]
+        return []
     
-    # Recupera i nomi dalla tabella 'fornitori'
-    response = supabase.table("fornitori").select("nome").execute()
-    # Estrae i nomi, rimuove i duplicati e ordina
-    suppliers = list(set([item['nome'] for item in response.data]))
-    suppliers.sort()
-    return suppliers
+    try:
+        # Recupera i nomi dalla tabella 'fornitori' su Supabase
+        response = supabase.table("fornitori").select("nome").execute()
+        # Estraiamo solo i nomi, rimuoviamo i duplicati e ordiniamo alfabeticamente
+        raw_list = [item['nome'] for item in response.data if item.get('nome')]
+        suppliers = sorted(list(set(raw_list)))
+        return suppliers
+    except Exception:
+        return []
 
 @app.post("/api/suppliers")
 async def add_supplier(supplier: NewSupplier):
     if not supabase:
         raise HTTPException(status_code=500, detail="Supabase non configurato")
-        
+    
     name = supplier.name.strip().upper()
     if name:
-        # Inserisce il nuovo fornitore (Supabase gestirà i vincoli di unicità se impostati)
         try:
+            # Inserimento su Supabase
             supabase.table("fornitori").insert({"nome": name}).execute()
         except Exception as e:
-            # Se il fornitore esiste già, proseguiamo semplicemente per restituire la lista
-            pass
+            print(f"Errore o duplicato: {e}")
             
     return await get_suppliers()
 
@@ -142,7 +144,6 @@ async def export_excel(data: PayloadExport):
             'Metri Quadri': c.mq,
             'Terminato': data.terminato,
             'Linea': data.linea,
-            # Mantengo la larghezza e foto in fondo se servissero, altrimenti si possono togliere
             'Larghezza': data.larghezza,
             'Foto Originale': c.nome_foto
         })
