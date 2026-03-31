@@ -6,7 +6,7 @@ import * as XLSX from 'xlsx';
 
 // Configurazione DIRETTA Supabase
 const supabaseUrl = 'https://vnzrewcbnoqbqvzckome.supabase.co';
-const supabaseKey = 'sb_publishable_Sq9txbu-PmKdbxETSx2cjw_WqWEFBPO'; // La trovi nelle impostazioni API di Supabase
+const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZuenJld2Nibm9xYnF2emNrb21lIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA5Njk2NDUsImV4cCI6MjA4NjU0NTY0NX0.pdnPyYB4DwEjZ10aF3tGigAjiwLGkP-kx07-15L4ass'; // La trovi nelle impostazioni API di Supabase
 const supabase = createClient(supabaseUrl, supabaseKey);
 
 const API_BASE = "https://tuo-backend-ocr.onrender.com/api"; // Solo per OCR
