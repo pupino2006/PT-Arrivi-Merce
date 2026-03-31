@@ -10,6 +10,7 @@ from datetime import datetime
 from google.cloud import vision
 from pydantic import BaseModel
 from typing import List, Optional
+from supabase import create_client, Client
 
 app = FastAPI(title="API Arrivi Merce")
 
@@ -31,12 +32,10 @@ elif "GOOGLE_CREDENTIALS_JSON" in os.environ:
         f.write(os.environ["GOOGLE_CREDENTIALS_JSON"])
     os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "google_key_temp.json"
 
-# Funzione helper per caricare i fornitori dal file JSON
-def load_suppliers_list():
-    if os.path.exists("fornitori.json"):
-        with open("fornitori.json", "r") as f:
-            return json.load(f)
-    return ["LAMPRE", "MARCEGAGLIA", "ARCELORMITTAL", "NOVELIS"]
+# Inizializzazione client Supabase (usando variabili d'ambiente)
+url: str = os.environ.get("SUPABASE_URL")
+key: str = os.environ.get("SUPABASE_KEY")
+supabase: Client = create_client(url, key) if url and key else None
 
 def estrai_dati_chirurgica(testo_ocr: str):
     """Estrae dati dall'OCR - Focalizzato su Barcode, Peso e MQ"""
@@ -84,17 +83,31 @@ class NewSupplier(BaseModel):
 
 @app.get("/api/suppliers")
 async def get_suppliers():
-    return load_suppliers_list()
+    if not supabase:
+        return ["ERRORE: Supabase non configurato"]
+    
+    # Recupera i nomi dalla tabella 'fornitori'
+    response = supabase.table("fornitori").select("nome").execute()
+    # Estrae i nomi, rimuove i duplicati e ordina
+    suppliers = list(set([item['nome'] for item in response.data]))
+    suppliers.sort()
+    return suppliers
 
 @app.post("/api/suppliers")
 async def add_supplier(supplier: NewSupplier):
-    suppliers = load_suppliers_list()
+    if not supabase:
+        raise HTTPException(status_code=500, detail="Supabase non configurato")
+        
     name = supplier.name.strip().upper()
-    if name and name not in suppliers:
-        suppliers.append(name)
-        with open("fornitori.json", "w") as f:
-            json.dump(suppliers, f)
-    return suppliers # Restituisce la lista aggiornata
+    if name:
+        # Inserisce il nuovo fornitore (Supabase gestirà i vincoli di unicità se impostati)
+        try:
+            supabase.table("fornitori").insert({"nome": name}).execute()
+        except Exception as e:
+            # Se il fornitore esiste già, proseguiamo semplicemente per restituire la lista
+            pass
+            
+    return await get_suppliers()
 
 class Collo(BaseModel):
     barcode: str

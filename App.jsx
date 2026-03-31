@@ -4,6 +4,10 @@ import { Html5QrcodeScanner } from 'html5-qrcode';
 
 const API_BASE = "https://tuo-backend-su-render.com/api"; // Cambia questo dopo il deploy
 
+// Liste predefinite richieste dall'utente
+const SPESSORI_LIST = [0.06, 0.08, 0.1, 0.2, 0.3, 0.38, 0.4, 0.45, 0.48, 0.5, 0.55, 0.58, 0.6, 0.65, 0.68, 0.7, 0.75, 0.78, 0.8, 1];
+const LARGHEZZE_LIST = [1060, 1200, 1225, 1250, 2400];
+
 // Funzione helper per comprimere e ridimensionare le immagini lato client
 const compressImage = (file) => {
   return new Promise((resolve) => {
@@ -93,12 +97,17 @@ function App() {
 
   // Gestione aggiunta nuovo fornitore
   const handleSaveNewSupplier = async () => {
-    if (newSupplierName) {
+    const nameToSave = newSupplierName.toUpperCase().trim();
+    if (nameToSave) {
       try {
-        const res = await axios.post(`${API_BASE}/suppliers`, { name: newSupplierName });
-        setSuppliers(res.data); // Aggiorna la lista con quella tornata dal server
-        const savedName = newSupplierName.toUpperCase();
-        setCommonData(prev => ({...prev, fornitore: savedName}));
+        const res = await axios.post(`${API_BASE}/suppliers`, { name: nameToSave });
+        
+        // Aggiorniamo la lista locale con la risposta del server (che è la lista completa)
+        if (Array.isArray(res.data)) {
+          setSuppliers(res.data);
+        }
+
+        setCommonData(prev => ({...prev, fornitore: nameToSave}));
         setNewSupplierName('');
       } catch (err) {
         alert("Errore nel salvataggio del fornitore");
@@ -163,7 +172,7 @@ function App() {
                   <input 
                     type="text" 
                     placeholder="Nome nuovo fornitore" 
-                    className="flex-1 p-2 border rounded focus:ring-2 focus:ring-green-500 outline-none"
+                    className="flex-1 p-2 border rounded focus:ring-2 focus:ring-green-500 outline-none uppercase"
                     value={newSupplierName}
                     onChange={e => setNewSupplierName(e.target.value)}
                   />
@@ -189,12 +198,24 @@ function App() {
               <input type="text" className="w-full p-2 border rounded" value={commonData.colore} onChange={e => setCommonData({...commonData, colore: e.target.value})} />
             </div>
             <div>
-              <label className="block text-sm font-medium">Spessore (mm)</label>
-              <input type="number" step="0.01" className="w-full p-2 border rounded" value={commonData.spessore} onChange={e => setCommonData({...commonData, spessore: e.target.value})} />
+              <label className="block text-sm font-medium">Spessore dichiarato (mm)</label>
+              <select 
+                className="w-full p-2 border rounded" 
+                value={commonData.spessore} 
+                onChange={e => setCommonData({...commonData, spessore: parseFloat(e.target.value)})}
+              >
+                {SPESSORI_LIST.map(s => <option key={s} value={s}>{s} mm</option>)}
+              </select>
             </div>
             <div>
-              <label className="block text-sm font-medium">Larghezza (mm)</label>
-              <input type="number" className="w-full p-2 border rounded" value={commonData.larghezza} onChange={e => setCommonData({...commonData, larghezza: e.target.value})} />
+              <label className="block text-sm font-medium">Larghezza dichiarata (mm)</label>
+              <select 
+                className="w-full p-2 border rounded" 
+                value={commonData.larghezza} 
+                onChange={e => setCommonData({...commonData, larghezza: parseInt(e.target.value)})}
+              >
+                {LARGHEZZE_LIST.map(l => <option key={l} value={l}>{l} mm</option>)}
+              </select>
             </div>
             <div>
               <label className="block text-sm font-medium">Terminato</label>
