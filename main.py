@@ -87,13 +87,14 @@ async def get_suppliers():
         return []
     
     try:
-        # Recupera i nomi dalla tabella 'fornitori' su Supabase
-        response = supabase.table("fornitori").select("nome").execute()
-        # Estraiamo solo i nomi, rimuoviamo i duplicati e ordiniamo alfabeticamente
-        raw_list = [item['nome'] for item in response.data if item.get('nome')]
+        # Recupera i nomi dalla colonna 'Produttore/Fornitore' della tabella 'db_mp_arrivi'
+        response = supabase.table("db_mp_arrivi").select("Produttore/Fornitore").execute()
+        # Normalizziamo in maiuscolo e puliamo gli spazi per evitare duplicati "simili" (es. Marcegaglia vs marcegaglia)
+        raw_list = [str(item['Produttore/Fornitore']).strip().upper() for item in response.data if item.get('Produttore/Fornitore')]
         suppliers = sorted(list(set(raw_list)))
         return suppliers
-    except Exception:
+    except Exception as e:
+        print(f"Errore query Supabase: {e}")
         return []
 
 @app.post("/api/suppliers")
@@ -104,8 +105,8 @@ async def add_supplier(supplier: NewSupplier):
     name = supplier.name.strip().upper()
     if name:
         try:
-            # Inserimento su Supabase
-            supabase.table("fornitori").insert({"nome": name}).execute()
+            # Inserimento nella tabella e colonna corretta (db_mp_arrivi)
+            supabase.table("db_mp_arrivi").insert({"Produttore/Fornitore": name}).execute()
         except Exception as e:
             print(f"Errore o duplicato: {e}")
             

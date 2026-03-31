@@ -65,7 +65,8 @@ function App() {
   };
 
   useEffect(() => {
-    []);
+    loadSuppliers();
+  }, []);
 
   // Step 1: Upload Foto
   const handleUpload = async (e) => {
@@ -110,11 +111,13 @@ function App() {
     if (nameToSave) {
       try {
         const res = await axios.post(`${API_BASE}/suppliers`, { name: nameToSave });
-        
-
+        if (Array.isArray(res.data)) {
+          setSuppliers(res.data);
         }
         setCommonData(prev => ({...prev, fornitore: nameToSave}));
         setNewSupplierName('');
+      } catch (err) {
+        console.error(err);
         alert("Errore nel salvataggio del fornitore");
       }
     }
@@ -186,6 +189,7 @@ function App() {
                     className="bg-green-600 text-white px-4 rounded font-bold hover:bg-green-700 transition-colors"
                   >
                     Salva
+                  </button>
                 </div>
               )}
             </div>
@@ -203,19 +207,33 @@ function App() {
             </div>
             <div>
               <label className="block text-sm font-medium">Spessore dichiarato (mm)</label>
-              <select className="w-full p-2 border rounded" value={commonData.spessore} onChange={e => setCommonData({...commonData, spessore: e.target.value})}>
+              <select 
+                className="w-full p-2 border rounded" 
+                value={commonData.spessore} 
+                onChange={e => setCommonData({...commonData, spessore: parseFloat(e.target.value)})}
+              >
                 <option value="">Seleziona...</option>
-                {SPESSORI_LIST.map(s => (
-                  <option key={s} value={s}>{s} mm</option>
-                ))}/select> v>><label className="block text-sm font-medium">Larghezza dichiarata (mm)</label>
-              <select className="w-full p-rounded" value={commonData.larghezza} onChange={e => setCommonData({...commonData, larghezza: e.target.value})}>
-                <option value="">SeE
-                o lect>
+                {SPESSORI_LIST.map(s => <option key={s} value={s}>{s} mm</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium">Larghezza dichiarata (mm)</label>
+              <select 
+                className="w-full p-2 border rounded" 
+                value={commonData.larghezza} 
+                onChange={e => setCommonData({...commonData, larghezza: parseInt(e.target.value)})}
+              >
+                <option value="">Seleziona...</option>
+                {LARGHEZZE_LIST.map(l => <option key={l} value={l}>{l} mm</option>)}
+              </select>
             </div>
             <div>
               <label className="block text-sm font-medium">Terminato</label>
               <input type="text" className="w-full p-2 border rounded" value={commonData.terminato} onChange={e => setCommonData({...commonData, terminato: e.target.value})} />
             </div>
+          </div>
+          <button onClick={() => setStep(3)} className="w-full bg-blue-700 text-white py-3 rounded-lg font-bold">Avanti ➡️</button>
+        </div>
       )}
 
       {/* STEP 3 */}
