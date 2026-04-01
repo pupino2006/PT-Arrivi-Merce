@@ -47,8 +47,8 @@ const compressImage = (file) => {
 function App() {
   const [step, setStep] = useState(1);
   const [suppliers, setSuppliers] = useState([]);
-  const [thicknesses, setThicknesses] = useState(SPESSORI_LIST);
-  const [widths, setWidths] = useState(LARGHEZZE_LIST);
+  const [thicknesses, setThicknesses] = useState([...SPESSORI_LIST]);
+  const [widths, setWidths] = useState([...LARGHEZZE_LIST]);
   const [commonData, setCommonData] = useState({
     fornitore: '',
     descrizione: 'Acciaio Zincato',
@@ -64,6 +64,7 @@ function App() {
   const [isScanning, setIsScanning] = useState(null); // Indice del collo in scansione
   const [loading, setLoading] = useState(false);
   const [showLabel, setShowLabel] = useState(null); // Indice del collo per etichetta
+  const [showMiniLabel, setShowMiniLabel] = useState({}); // Stato per miniatura etichette
 
   // Carica i fornitori dal database all'avvio
   const loadSuppliers = async () => {
@@ -217,6 +218,42 @@ function App() {
     XLSX.writeFile(workbook, `arrivi_${commonData.data_arrivo}.xlsx`);
   };
 
+  // Stampa etichette con Zebra
+  const printZebra = async () => {
+    const zebraIp = '192.168.68.61';
+    
+    try {
+      // Genera comandi ZPL per ogni collo
+      for (const collo of colli) {
+        const zplCommand = `
+^XA
+^FO50,50^A0N,50,50^FD${commonData.descrizione || 'ACCIAIO ZINCATO'}^FS
+^FO50,100^A0N,30,30^FD${commonData.colore || 'RAL 9002'}^FS
+^FO50,150^A0N,80,80^FD${collo.barcode || 'N/A'}^FS
+^FO50,250^A0N,40,40^FD${commonData.spessore ? parseFloat(commonData.spessore).toFixed(2) : '0.00'} x ${commonData.larghezza || '0'}^FS
+^FO50,300^A0N,40,40^FDKG ${collo.peso || '0'}^FS
+^FO400,300^A0N,40,40^FDMQ ${collo.mq || '0.00'}^FS
+^FO50,350^BQN,2,8^FDQA,${JSON.stringify({lotto: collo.barcode, fornitore: commonData.fornitore, spessore: commonData.spessore, larghezza: commonData.larghezza, peso: collo.peso, mq: collo.mq, data: commonData.data_arrivo})}^FS
+^XZ
+        `;
+        
+        // Invia comando Zebra tramite fetch
+        await fetch(`http://${zebraIp}/pstprnt`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'text/plain',
+          },
+          body: zplCommand
+        });
+      }
+      
+      alert('Etichette inviate alla stampante Zebra!');
+    } catch (error) {
+      console.error('Errore stampa Zebra:', error);
+      alert('Errore durante la stampa. Verifica che la stampante Zebra sia accessibile all\'indirizzo ' + zebraIp);
+    }
+  };
+
   return (
     <div className="p-4 max-w-xl mx-auto font-sans">
       <h1 className="text-2xl font-bold text-blue-800 mb-4">SB App Arrivi</h1>
@@ -353,7 +390,85 @@ function App() {
                   }} />
                 </div>
               </div>
-              <button onClick={() => setShowLabel(index)} className="w-full mt-3 bg-green-600 text-white py-2 rounded font-bold hover:bg-green-700">🏷️ Genera Etichetta</button>
+              <div className="flex gap-2 mt-3">
+                <button onClick={() => setShowLabel(index)} className="flex-1 bg-green-600 text-white py-2 rounded font-bold hover:bg-green-700">🏷️ Genera Etichetta</button>
+                <button 
+                  onClick={() => setShowMiniLabel(prev => ({...prev, [index]: !prev[index]}))}
+                  className="flex-1 bg-purple-600 text-white py-2 rounded font-bold hover:bg-purple-700"
+                >
+                  {showMiniLabel[index] ? '✖️ Chiudi Miniatura' : '👁️ Mostra Miniatura'}
+                </button>
+              </div>
+              
+              {showMiniLabel[index] && (
+                <div className="mt-3 p-3 bg-gray-50 rounded border border-gray-200">
+                  <div 
+                    style={{
+                      width: '100%',
+                      height: '120px',
+                      padding: '8px',
+                      backgroundColor: 'white',
+                      border: '1px solid #ddd',
+                      fontFamily: 'Arial, sans-serif',
+                      fontSize: '8pt',
+                      position: 'relative',
+                      overflow: 'hidden'
+                    }}
+                  >
+                    {/* Logo e descrizione in alto */}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+                      <div>
+                        <img src="ptsimbolo.png" alt="Logo" style={{ height: '12px' }} />
+                      </div>
+                      <div style={{ textAlign: 'right', fontSize: '7pt' }}>
+                        <div style={{ fontWeight: 'bold' }}>{commonData.descrizione || 'ACCIAIO ZINCATO'}</div>
+                        <div>{commonData.colore || 'RAL 9002'}</div>
+                      </div>
+                    </div>
+                    
+                    {/* Codice lotto al centro */}
+                    <div style={{ textAlign: 'center', marginBottom: '3px' }}>
+                      <div style={{ fontSize: '10pt', fontWeight: 'bold', letterSpacing: '1px' }}>
+                        {collo.barcode || 'N/A'}
+                      </div>
+                    </div>
+                    
+                    {/* Spessore x Larghezza */}
+                    <div style={{ textAlign: 'center', marginBottom: '3px' }}>
+                      <div style={{ fontSize: '8pt' }}>
+                        {commonData.spessore ? parseFloat(commonData.spessore).toFixed(2) : '0.00'} x {commonData.larghezza || '0'}
+                      </div>
+                    </div>
+                    
+                    {/* Peso e MQ */}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+                      <div style={{ fontSize: '8pt', fontWeight: 'bold' }}>
+                        KG {collo.peso || '0'}
+                      </div>
+                      <div style={{ fontSize: '8pt', fontWeight: 'bold' }}>
+                        MQ {collo.mq || '0.00'}
+                      </div>
+                    </div>
+                    
+                    {/* QR Code miniatura */}
+                    <div style={{ position: 'absolute', bottom: '4px', right: '4px' }}>
+                      <QRCodeSVG 
+                        value={JSON.stringify({
+                          lotto: collo.barcode || '',
+                          fornitore: commonData.fornitore || '',
+                          spessore: commonData.spessore || '',
+                          larghezza: commonData.larghezza || '',
+                          peso: collo.peso || '',
+                          mq: collo.mq || '',
+                          data: commonData.data_arrivo || ''
+                        })}
+                        size={30}
+                        level="H"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           ))}
           
@@ -473,6 +588,7 @@ function App() {
             <p>Hai elaborato {colli.length} rotoli.</p>
           </div>
           <button onClick={exportExcel} className="w-full bg-green-600 text-white py-4 rounded-xl text-lg font-bold shadow-lg">📥 Scarica Excel per Database</button>
+          <button onClick={printZebra} className="w-full bg-orange-600 text-white py-4 rounded-xl text-lg font-bold shadow-lg">🖨️ Stampa Etichette Zebra</button>
           <button onClick={() => setStep(3)} className="text-blue-700 underline">Torna indietro</button>
         </div>
       )}
