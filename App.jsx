@@ -65,6 +65,8 @@ function App() {
   const [loading, setLoading] = useState(false);
   const [showLabel, setShowLabel] = useState(null); // Indice del collo per etichetta
   const [showMiniLabel, setShowMiniLabel] = useState({}); // Stato per miniatura etichette
+  const [applyCommonLabelToAll, setApplyCommonLabelToAll] = useState(true);
+  const [activeCollo, setActiveCollo] = useState(0);
 
   // Carica i fornitori dal database all'avvio
   const loadSuppliers = async () => {
@@ -149,13 +151,55 @@ function App() {
         return axios.post(`${API_BASE}/analyze`, formData);
       });
       const results = await Promise.all(promises);
-      setColli(results.map(r => r.data));
+      setColli(results.map(r => ({
+        ...r.data,
+        lunghezza: r.data.lunghezza ?? '',
+        completed: false,
+        descrizione: r.data.descrizione ?? commonData.descrizione,
+        colore: r.data.colore ?? commonData.colore,
+      })));
       setStep(2);
     } catch (err) {
       alert("Errore durante l'elaborazione delle foto");
     } finally {
       setLoading(false);
     }
+  };
+
+  const markColloCompleted = (index) => {
+    setColli(prev => {
+      const next = prev.map((collo, i) => i === index ? { ...collo, completed: true } : collo);
+      const nextIndex = next.findIndex((collo, i) => i > index && !collo.completed);
+      const remaining = next.findIndex(collo => !collo.completed);
+      if (nextIndex !== -1) setActiveCollo(nextIndex);
+      else if (remaining !== -1) setActiveCollo(remaining);
+      return next;
+    });
+  };
+
+  useEffect(() => {
+    if (step === 3 && colli.length > 0) {
+      const nextActive = colli.findIndex(c => !c.completed);
+      setActiveCollo(nextActive !== -1 ? nextActive : 0);
+    }
+  }, [step, colli]);
+
+  useEffect(() => {
+    if (step === 3 && colli.length > 0) {
+      const element = document.getElementById(`collo-card-${activeCollo}`);
+      element?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  }, [activeCollo, step, colli.length]);
+
+  const getLabelDescription = (collo) => applyCommonLabelToAll ? commonData.descrizione : (collo?.descrizione || commonData.descrizione);
+  const getLabelColor = (collo) => applyCommonLabelToAll ? commonData.colore : (collo?.colore || commonData.colore);
+  const applyAllLabels = () => {
+    setColli(prev => prev.map(collo => ({
+      ...collo,
+      descrizione: commonData.descrizione,
+      colore: commonData.colore,
+    })));
+    setApplyCommonLabelToAll(true);
   };
 
   // Gestione Scanner Barcode
@@ -202,10 +246,11 @@ function App() {
       'Produttore/Fornitore': commonData.fornitore,
       'Spessore dichiarato': commonData.spessore,
       'Arrivo': commonData.data_arrivo,
-      'Descrizione': commonData.descrizione,
-      'Codice Colore': commonData.colore,
+      'Descrizione': getLabelDescription(c),
+      'Codice Colore': getLabelColor(c),
       'Peso': c.peso,
       'Metri Quadri': c.mq,
+      'Lunghezza': c.lunghezza,
       'Terminato': commonData.terminato,
       'Linea': commonData.linea,
       'Larghezza': commonData.larghezza,
@@ -225,15 +270,17 @@ function App() {
     try {
       // Genera comandi ZPL per ogni collo
       for (const collo of colli) {
+        const labelDescrizione = getLabelDescription(collo);
+        const labelColore = getLabelColor(collo);
         const zplCommand = `
 ^XA
-^FO50,50^A0N,50,50^FD${commonData.descrizione || 'ACCIAIO ZINCATO'}^FS
-^FO50,100^A0N,30,30^FD${commonData.colore || 'RAL 9002'}^FS
+^FO50,50^A0N,50,50^FD${labelDescrizione || 'ACCIAIO ZINCATO'}^FS
+^FO50,100^A0N,30,30^FD${labelColore || 'RAL 9002'}^FS
 ^FO50,150^A0N,80,80^FD${collo.barcode || 'N/A'}^FS
 ^FO50,250^A0N,40,40^FD${commonData.spessore ? parseFloat(commonData.spessore).toFixed(2) : '0.00'} x ${commonData.larghezza || '0'}^FS
 ^FO50,300^A0N,40,40^FDKG ${collo.peso || '0'}^FS
 ^FO400,300^A0N,40,40^FDMQ ${collo.mq || '0.00'}^FS
-^FO50,350^BQN,2,8^FDQA,${JSON.stringify({lotto: collo.barcode, fornitore: commonData.fornitore, spessore: commonData.spessore, larghezza: commonData.larghezza, peso: collo.peso, mq: collo.mq, data: commonData.data_arrivo})}^FS
+^FO50,350^BQN,2,8^FDQA,${JSON.stringify({lotto: collo.barcode, fornitore: commonData.fornitore, descrizione: labelDescrizione, colore: labelColore, spessore: commonData.spessore, larghezza: commonData.larghezza, peso: collo.peso, mq: collo.mq, lunghezza: collo.lunghezza, data: commonData.data_arrivo})}^FS
 ^XZ
         `;
         
@@ -251,6 +298,44 @@ function App() {
     } catch (error) {
       console.error('Errore stampa Zebra:', error);
       alert('Errore durante la stampa. Verifica che la stampante Zebra sia accessibile all\'indirizzo ' + zebraIp);
+    }
+  };
+
+  const printZebraActive = async () => {
+    const zebraIp = '192.168.68.61';
+    const collo = colli[activeCollo];
+    if (!collo) {
+      alert('Nessun rotolo attivo selezionato per la stampa Zebra.');
+      return;
+    }
+
+    try {
+      const labelDescrizione = getLabelDescription(collo);
+      const labelColore = getLabelColor(collo);
+      const zplCommand = `
+^XA
+^FO50,50^A0N,50,50^FD${labelDescrizione || 'ACCIAIO ZINCATO'}^FS
+^FO50,100^A0N,30,30^FD${labelColore || 'RAL 9002'}^FS
+^FO50,150^A0N,80,80^FD${collo.barcode || 'N/A'}^FS
+^FO50,250^A0N,40,40^FD${commonData.spessore ? parseFloat(commonData.spessore).toFixed(2) : '0.00'} x ${commonData.larghezza || '0'}^FS
+^FO50,300^A0N,40,40^FDKG ${collo.peso || '0'}^FS
+^FO400,300^A0N,40,40^FDMQ ${collo.mq || '0.00'}^FS
+^FO50,350^BQN,2,8^FDQA,${JSON.stringify({lotto: collo.barcode, fornitore: commonData.fornitore, descrizione: labelDescrizione, colore: labelColore, spessore: commonData.spessore, larghezza: commonData.larghezza, peso: collo.peso, mq: collo.mq, lunghezza: collo.lunghezza, data: commonData.data_arrivo})}^FS
+^XZ
+        `;
+
+      await fetch(`http://${zebraIp}/pstprnt`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'text/plain',
+        },
+        body: zplCommand
+      });
+
+      alert('Etichetta del rotolo attivo inviata alla stampante Zebra!');
+    } catch (error) {
+      console.error('Errore stampa Zebra attiva:', error);
+      alert('Errore durante la stampa del rotolo attivo. Verifica la stampante Zebra.');
     }
   };
 
@@ -364,9 +449,34 @@ function App() {
       {step === 3 && (
         <div className="space-y-6">
           <h2 className="text-xl font-semibold">Dettaglio Colli</h2>
+          <div className="flex flex-col gap-2 bg-blue-50 p-3 rounded border border-blue-200">
+            <label className="inline-flex items-center gap-2 text-sm font-medium">
+              <input
+                type="checkbox"
+                checked={applyCommonLabelToAll}
+                onChange={e => setApplyCommonLabelToAll(e.target.checked)}
+                className="h-4 w-4 text-blue-600 border-gray-300 rounded"
+              />
+              Applica descrizione e codice colore a tutte le etichette
+            </label>
+            <div className="text-xs text-gray-600">
+              {applyCommonLabelToAll
+                ? 'La descrizione e il codice colore comuni verranno usati per tutte le etichette.'
+                : 'Ora puoi modificare descrizione e codice colore per ogni rotolo individualmente.'}
+            </div>
+            <div className="text-xs text-gray-600">Se MQ e lunghezza sono vuoti, puoi comunque segnare il rotolo come completato.</div>
+            <div className="text-xs text-gray-600">Rotolo attivo: {activeCollo + 1}/{colli.length}</div>
+          </div>
           {colli.map((collo, index) => (
-            <div key={index} className="p-4 border rounded-lg bg-white shadow-sm">
+            <div
+              key={index}
+              id={`collo-card-${index}`}
+              className={`p-4 border rounded-lg bg-white shadow-sm ${activeCollo === index ? 'border-blue-500 ring-1 ring-blue-200' : ''} ${collo.completed ? 'bg-green-50 opacity-90' : ''}`}
+            >
               <p className="text-xs text-gray-400 mb-2">{collo.nome_foto}</p>
+              {collo.completed && (
+                <div className="mb-3 rounded-md bg-green-100 border border-green-200 p-2 text-sm text-green-800">✅ Rotolo completato</div>
+              )}
               <div className="flex items-end gap-2 mb-3">
                 <div className="flex-1">
                   <label className="block text-xs font-bold text-gray-600">CODICE LOTTO</label>
@@ -376,7 +486,23 @@ function App() {
                 </div>
                 <button onClick={() => setIsScanning(index)} className="bg-blue-100 p-2 rounded border border-blue-300">📷 Scan</button>
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              {!applyCommonLabelToAll && (
+                <div className="grid grid-cols-2 gap-4 mb-3">
+                  <div>
+                    <label className="block text-xs font-bold text-gray-600">Descrizione etichetta</label>
+                    <input type="text" className="w-full p-2 border rounded" value={collo.descrizione} onChange={e => {
+                      const nc = [...colli]; nc[index].descrizione = e.target.value; setColli(nc);
+                    }} />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-gray-600">Codice colore etichetta</label>
+                    <input type="text" className="w-full p-2 border rounded" value={collo.colore} onChange={e => {
+                      const nc = [...colli]; nc[index].colore = e.target.value; setColli(nc);
+                    }} />
+                  </div>
+                </div>
+              )}
+              <div className="grid grid-cols-3 gap-4">
                 <div>
                   <label className="block text-xs font-bold text-gray-600">PESO (KG)</label>
                   <input type="number" className="w-full p-2 border rounded" value={collo.peso} onChange={e => {
@@ -389,6 +515,12 @@ function App() {
                     const nc = [...colli]; nc[index].mq = e.target.value; setColli(nc);
                   }} />
                 </div>
+                <div>
+                  <label className="block text-xs font-bold text-gray-600">LUNGHEZZA (mm)</label>
+                  <input type="number" className="w-full p-2 border rounded" value={collo.lunghezza} onChange={e => {
+                    const nc = [...colli]; nc[index].lunghezza = e.target.value; setColli(nc);
+                  }} />
+                </div>
               </div>
               <div className="flex gap-2 mt-3">
                 <button onClick={() => setShowLabel(index)} className="flex-1 bg-green-600 text-white py-2 rounded font-bold hover:bg-green-700">🏷️ Genera Etichetta</button>
@@ -397,6 +529,12 @@ function App() {
                   className="flex-1 bg-purple-600 text-white py-2 rounded font-bold hover:bg-purple-700"
                 >
                   {showMiniLabel[index] ? '✖️ Chiudi Miniatura' : '👁️ Mostra Miniatura'}
+                </button>
+                <button
+                  onClick={() => markColloCompleted(index)}
+                  className="flex-1 bg-emerald-600 text-white py-2 rounded font-bold hover:bg-emerald-700"
+                >
+                  ✅ Completa rotolo
                 </button>
               </div>
               
@@ -421,8 +559,8 @@ function App() {
                         <img src="ptsimbolo.png" alt="Logo" style={{ height: '12px' }} />
                       </div>
                       <div style={{ textAlign: 'right', fontSize: '7pt' }}>
-                        <div style={{ fontWeight: 'bold' }}>{commonData.descrizione || 'ACCIAIO ZINCATO'}</div>
-                        <div>{commonData.colore || 'RAL 9002'}</div>
+                        <div style={{ fontWeight: 'bold' }}>{getLabelDescription(collo) || 'ACCIAIO ZINCATO'}</div>
+                        <div>{getLabelColor(collo) || 'RAL 9002'}</div>
                       </div>
                     </div>
                     
@@ -456,6 +594,8 @@ function App() {
                         value={JSON.stringify({
                           lotto: collo.barcode || '',
                           fornitore: commonData.fornitore || '',
+                          descrizione: getLabelDescription(collo) || '',
+                          colore: getLabelColor(collo) || '',
                           spessore: commonData.spessore || '',
                           larghezza: commonData.larghezza || '',
                           peso: collo.peso || '',
@@ -500,8 +640,8 @@ function App() {
                       <img src="ptsimbolo.png" alt="Logo" style={{ height: '15mm' }} />
                     </div>
                     <div style={{ textAlign: 'right' }}>
-                      <div style={{ fontSize: '14pt', fontWeight: 'bold' }}>{commonData.descrizione || 'ACCIAIO ZINCATO'}</div>
-                      <div style={{ fontSize: '12pt' }}>{commonData.colore || 'RAL 9002'}</div>
+                      <div style={{ fontSize: '14pt', fontWeight: 'bold' }}>{getLabelDescription(colli[showLabel]) || 'ACCIAIO ZINCATO'}</div>
+                      <div style={{ fontSize: '12pt' }}>{getLabelColor(colli[showLabel]) || 'RAL 9002'}</div>
                     </div>
                   </div>
                   
@@ -535,6 +675,8 @@ function App() {
                       value={JSON.stringify({
                         lotto: colli[showLabel]?.barcode || '',
                         fornitore: commonData.fornitore || '',
+                        descrizione: getLabelDescription(colli[showLabel]) || '',
+                        colore: getLabelColor(colli[showLabel]) || '',
                         spessore: commonData.spessore || '',
                         larghezza: commonData.larghezza || '',
                         peso: colli[showLabel]?.peso || '',
@@ -575,6 +717,11 @@ function App() {
             </div>
           )}
           
+          <div className="flex flex-col gap-3">
+            <button onClick={applyAllLabels} className="w-full bg-slate-700 text-white py-3 rounded-lg font-bold">📋 Applica descrizione e codice colore a tutti i rotoli</button>
+            <button onClick={printZebra} className="w-full bg-orange-600 text-white py-3 rounded-lg font-bold">🖨️ Stampa direttamente su Zebra ZT230</button>
+            <button onClick={printZebraActive} className="w-full bg-amber-600 text-white py-3 rounded-lg font-bold">🖨️ Stampa solo il rotolo attivo su Zebra ZT230</button>
+          </div>
           <button onClick={() => setStep(4)} className="w-full bg-blue-700 text-white py-3 rounded-lg font-bold">Riepilogo ➡️</button>
           <p className="text-xs text-gray-500 text-center">Puoi procedere anche senza compilare tutti i campi</p>
         </div>
