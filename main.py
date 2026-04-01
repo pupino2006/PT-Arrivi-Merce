@@ -103,7 +103,11 @@ async def get_suppliers():
                 break
             page += 1
         
-        raw_names = [str(row.get('Produttore/Fornitore', '')).strip().upper() for row in all_data]
+        # Pulizia avanzata: rimuove spazi multipli e converte in maiuscolo
+        raw_names = [
+            re.sub(r'\s+', ' ', str(row.get('Produttore/Fornitore', '') or '')).strip().upper() 
+            for row in all_data
+        ]
         return sorted(list(set([n for n in raw_names if n])))
     except Exception as e:
         print(f"Errore query Supabase: {e}")

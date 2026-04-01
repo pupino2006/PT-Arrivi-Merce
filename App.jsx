@@ -66,43 +66,63 @@ function App() {
   // Carica i fornitori dal database all'avvio
   const loadSuppliers = async () => {
     if (!supabase) return;
-    let allData = [];
-    let page = 0;
-    const pageSize = 1000;
-
+    console.log("Inizio caricamento dati da Supabase...");
     try {
+      let allData = [];
+      let page = 0;
+      const pageSize = 1000;
+      let hasMore = true;
+
       // Ciclo per recuperare TUTTE le righe (oltre il limite di 1000)
-      while (true) {
+      while (hasMore) {
         const { data, error } = await supabase
           .from('db_mp_arrivi')
           .select('Produttore/Fornitore, "Spessore dichiarato", Larghezza')
           .range(page * pageSize, (page + 1) * pageSize - 1);
 
         if (error) throw error;
-        if (!data || data.length === 0) break;
-
-        allData = allData.concat(data);
-        if (data.length < pageSize) break;
-        page++;
+        if (!data || data.length === 0) {
+          hasMore = false;
+        } else {
+          allData = [...allData, ...data];
+          hasMore = data.length === pageSize;
+          page++;
+        }
       }
 
-      // 1. Scrematura Fornitori (Maiuscolo e Univoci)
-      const uniqueSuppliers = [...new Set(allData.map(item => 
-        item['Produttore/Fornitore']?.toString().trim().toUpperCase()
-      ).filter(Boolean))].sort();
-      setSuppliers(uniqueSuppliers);
+      console.log(`Dati caricati: ${allData.length} righe.`);
+
+      // Funzione di pulizia stringhe migliorata
+      const cleanStr = (s) => s?.toString()
+        .trim()
+        .replace(/\s\s+/g, ' ') // Sostituisce spazi multipli con uno solo
+        .toUpperCase();
+
+      // 1. Scrematura Fornitori (Senza duplicati "sporchi")
+      const rawSuppliers = allData
+        .map(item => cleanStr(item['Produttore/Fornitore']))
+        .filter(s => s && s.length > 1 && !/^[\d.,]+$/.test(s)); // Filtra nomi troppo corti o solo numerici
+      
+      const finalSuppliers = [...new Set(rawSuppliers)].sort();
+      setSuppliers(finalSuppliers);
 
       // 2. Scrematura Spessori (Numerici e Univoci)
-      const uniqueSpessori = [...new Set(allData.map(item => 
-        parseFloat(item['Spessore dichiarato'])
-      ).filter(n => !isNaN(n)))].sort((a, b) => a - b);
-      if (uniqueSpessori.length > 0) setThicknesses(uniqueSpessori);
+      const fromDbSpessori = allData
+        .map(item => parseFloat(item['Spessore dichiarato']?.toString().replace(',', '.')))
+        .filter(n => !isNaN(n) && n > 0);
+      
+      const combinedSpessori = [...new Set([...SPESSORI_LIST, ...fromDbSpessori])].sort((a, b) => a - b);
+      setThicknesses(combinedSpessori);
 
       // 3. Scrematura Larghezze (Numerici e Univoci)
-      const uniqueLarghezze = [...new Set(allData.map(item => 
-        parseInt(item['Larghezza'])
-      ).filter(n => !isNaN(n)))].sort((a, b) => a - b);
-      if (uniqueLarghezze.length > 0) setWidths(uniqueLarghezze);
+      const fromDbLarghezze = allData
+        .map(item => parseInt(item['Larghezza']))
+        .filter(n => !isNaN(n) && n > 0);
+
+      const combinedLarghezze = [...new Set([...LARGHEZZE_LIST, ...fromDbLarghezze])].sort((a, b) => a - b);
+      setWidths(combinedLarghezze);
+
+      console.log("Liste aggiornate correttamente.");
 
     } catch (err) {
       console.error("Errore caricamento fornitori", err);
@@ -275,7 +295,7 @@ function App() {
               >
                 <option value="">Seleziona spessore...</option>
                 {thicknesses.map(s => (
-                  <option key={s} value={s}>{s.toFixed(2)} mm</option>
+                  <option key={s} value={s}>{typeof s === 'number' ? s.toFixed(2) : s} mm</option>
                 ))}
               </select>
             </div>
