@@ -756,7 +756,9 @@
             larghezze: {},
             spessori: {}
         };
-        
+        // Liste predefinite richieste dall'utente
+        const SPESSORI_LIST = [0.06, 0.08, 0.1, 0.2, 0.3, 0.38, 0.4, 0.45, 0.48, 0.5, 0.55, 0.58, 0.6, 0.65, 0.68, 0.7, 0.75, 0.78, 0.8, 1.0];
+        const LARGHEZZE_LIST = [1060, 1200, 1225, 1250, 2400];        
         // Carica da Supabase
         async function caricaDBArrivi() {
             console.log("📡 Carico db_mp_arrivi da Supabase...");
@@ -1335,26 +1337,21 @@
                 opt.textContent = s;
                 spessSelect.appendChild(opt);
             });
-        }
-        
         function aggiornaSpessoreLarghezzaComune() {
-            const fornitore = document.getElementById('fornitore').value;
             const largComuneSelect = document.getElementById('larghezzaComune');
             const spessComuneSelect = document.getElementById('spessoreComune');
-            const tutteLarg = getTutteLarghezze(fornitore);
-            const tuttiSpess = getTuttiSpessori(fornitore);
             
             largComuneSelect.innerHTML = '<option value="">Seleziona...</option>';
             spessComuneSelect.innerHTML = '<option value="">Seleziona...</option>';
             
-            tutteLarg.forEach(l => {
+            LARGHEZZE_LIST.forEach(l => {
                 const opt = document.createElement('option');
                 opt.value = l;
                 opt.textContent = l;
                 largComuneSelect.appendChild(opt);
             });
             
-            tuttiSpess.forEach(s => {
+            SPESSORI_LIST.forEach(s => {
                 const opt = document.createElement('option');
                 opt.value = s;
                 opt.textContent = s;
