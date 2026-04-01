@@ -3,6 +3,7 @@ import axios from 'axios';
 import { Html5QrcodeScanner } from 'html5-qrcode';
 import { createClient } from '@supabase/supabase-js';
 import * as XLSX from 'xlsx';
+import { QRCodeSVG } from 'qrcode.react';
 
 // Configurazione DIRETTA Supabase
 const supabaseUrl = 'https://vnzrewcbnoqbqvzckome.supabase.co';
@@ -62,6 +63,7 @@ function App() {
   const [newSupplierName, setNewSupplierName] = useState('');
   const [isScanning, setIsScanning] = useState(null); // Indice del collo in scansione
   const [loading, setLoading] = useState(false);
+  const [showLabel, setShowLabel] = useState(null); // Indice del collo per etichetta
 
   // Carica i fornitori dal database all'avvio
   const loadSuppliers = async () => {
@@ -351,6 +353,7 @@ function App() {
                   }} />
                 </div>
               </div>
+              <button onClick={() => setShowLabel(index)} className="w-full mt-3 bg-green-600 text-white py-2 rounded font-bold hover:bg-green-700">🏷️ Genera Etichetta</button>
             </div>
           ))}
           
@@ -361,7 +364,104 @@ function App() {
             </div>
           )}
           
+          {showLabel !== null && (
+            <div className="fixed inset-0 bg-black z-50 flex flex-col items-center justify-center p-4">
+              <div className="bg-white p-4 rounded-lg shadow-xl max-w-full overflow-auto">
+                <div 
+                  id="label-print"
+                  style={{
+                    width: '230mm',
+                    height: '160mm',
+                    padding: '10mm',
+                    backgroundColor: 'white',
+                    border: '1px solid #ccc',
+                    fontFamily: 'Arial, sans-serif',
+                    position: 'relative'
+                  }}
+                >
+                  {/* Logo e descrizione in alto */}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10mm' }}>
+                    <div>
+                      <img src="ptsimbolo.png" alt="Logo" style={{ height: '15mm' }} />
+                    </div>
+                    <div style={{ textAlign: 'right' }}>
+                      <div style={{ fontSize: '14pt', fontWeight: 'bold' }}>{commonData.descrizione || 'ACCIAIO ZINCATO'}</div>
+                      <div style={{ fontSize: '12pt' }}>{commonData.colore || 'RAL 9002'}</div>
+                    </div>
+                  </div>
+                  
+                  {/* Codice lotto al centro */}
+                  <div style={{ textAlign: 'center', marginBottom: '8mm' }}>
+                    <div style={{ fontSize: '24pt', fontWeight: 'bold', letterSpacing: '2px' }}>
+                      {colli[showLabel]?.barcode || 'N/A'}
+                    </div>
+                  </div>
+                  
+                  {/* Spessore x Larghezza */}
+                  <div style={{ textAlign: 'center', marginBottom: '8mm' }}>
+                    <div style={{ fontSize: '18pt' }}>
+                      {commonData.spessore ? parseFloat(commonData.spessore).toFixed(2) : '0.00'} x {commonData.larghezza || '0'}
+                    </div>
+                  </div>
+                  
+                  {/* Peso e MQ */}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10mm' }}>
+                    <div style={{ fontSize: '16pt', fontWeight: 'bold' }}>
+                      KG {colli[showLabel]?.peso || '0'}
+                    </div>
+                    <div style={{ fontSize: '16pt', fontWeight: 'bold' }}>
+                      MQ {colli[showLabel]?.mq || '0.00'}
+                    </div>
+                  </div>
+                  
+                  {/* QR Code */}
+                  <div style={{ position: 'absolute', bottom: '10mm', right: '10mm' }}>
+                    <QRCodeSVG 
+                      value={JSON.stringify({
+                        lotto: colli[showLabel]?.barcode || '',
+                        fornitore: commonData.fornitore || '',
+                        spessore: commonData.spessore || '',
+                        larghezza: commonData.larghezza || '',
+                        peso: colli[showLabel]?.peso || '',
+                        mq: colli[showLabel]?.mq || '',
+                        data: commonData.data_arrivo || ''
+                      })}
+                      size={80}
+                      level="H"
+                    />
+                  </div>
+                </div>
+                
+                <div className="flex gap-2 mt-4">
+                  <button 
+                    onClick={() => {
+                      const printContent = document.getElementById('label-print');
+                      const WinPrint = window.open('', '', 'width=900,height=650');
+                      WinPrint.document.write('<html><head><title>Etichetta</title></head><body>');
+                      WinPrint.document.write(printContent.outerHTML);
+                      WinPrint.document.write('</body></html>');
+                      WinPrint.document.close();
+                      WinPrint.focus();
+                      WinPrint.print();
+                      WinPrint.close();
+                    }}
+                    className="flex-1 bg-blue-600 text-white py-2 rounded font-bold hover:bg-blue-700"
+                  >
+                    🖨️ Stampa
+                  </button>
+                  <button 
+                    onClick={() => setShowLabel(null)}
+                    className="flex-1 bg-gray-500 text-white py-2 rounded font-bold hover:bg-gray-600"
+                  >
+                    ✖️ Chiudi
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+          
           <button onClick={() => setStep(4)} className="w-full bg-blue-700 text-white py-3 rounded-lg font-bold">Riepilogo ➡️</button>
+          <p className="text-xs text-gray-500 text-center">Puoi procedere anche senza compilare tutti i campi</p>
         </div>
       )}
 
