@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="it">
 <head>
     <meta charset="UTF-8">
@@ -375,10 +375,10 @@
 
     <!-- TABS -->
     <nav class="tabs">
-        <button class="tab-btn active" id="tab-btn-1" onclick="vaiAlStep(1)">1. 📸</button>
-        <button class="tab-btn" id="tab-btn-2" onclick="vaiAlStep(2)" disabled>2. 📋</button>
-        <button class="tab-btn" id="tab-btn-3" onclick="vaiAlStep(3)" disabled>3. ✏️</button>
-        <button class="tab-btn" id="tab-btn-4" onclick="vaiAlStep(4)" disabled>4. 📥</button>
+        <button class="tab-btn active" id="tab-btn-1" onclick="vaiAlStep(1)">1. ðŸ“¸</button>
+        <button class="tab-btn" id="tab-btn-2" onclick="vaiAlStep(2)" disabled>2. ðŸ“‹</button>
+        <button class="tab-btn" id="tab-btn-3" onclick="vaiAlStep(3)" disabled>3. âœï¸</button>
+        <button class="tab-btn" id="tab-btn-4" onclick="vaiAlStep(4)" disabled>4. ðŸ“¥</button>
     </nav>
 
     <!-- STEP INDICATOR -->
@@ -395,28 +395,28 @@
     <!-- STEP 1: CARICAMENTO FOTO -->
     <!-- ============================================== -->
     <div id="step-1-content" class="tab-content container">
-        <div class="section-title">📸 Step 1: Carica le Foto</div>
+        <div class="section-title">ðŸ“¸ Step 1: Carica le Foto</div>
         
         <div class="card">
             <p style="color: var(--secondary); font-size: 0.9rem; margin-bottom: 15px;">
-                📷 Carica le foto delle <strong>etichette</strong> di tutti i rotoli. 
-                L'app analizzerà automaticamente tutte le foto e estrarrà i dati comuni.
+                ðŸ“· Carica le foto delle <strong>etichette</strong> di tutti i rotoli. 
+                L'app analizzerÃ  automaticamente tutte le foto e estrarrÃ  i dati comuni.
             </p>
             
             <input type="file" id="fotoInput" accept="image/*" multiple style="display: none;" onchange="gestisciFotoSelezionate(event)">
             
             <button class="btn-main btn-warning" onclick="document.getElementById('fotoInput').click()">
-                📁 Seleziona Foto dalla Galleria
+                ðŸ“ Seleziona Foto dalla Galleria
             </button>
             
-            <button class="btn-main btn-success" onclick="inserisciManualmente()" style="margin-top: 10px;">
-                ➕ Inserisci Manualmente
+            <div class="input-group" style="margin-bottom: 15px;"><label>?? Quanti rotoli inserire?</label><input type="number" id="numRotoliStep1" min="1" max="100" value="1" style="width: 100%; padding: 10px;"></div><button class="btn-main btn-success" onclick="inserisciManualmente()" style="margin-top: 10px;">
+                âž• Inserisci Manualmente
             </button>
             
             <div id="fotoGrid" class="foto-grid"></div>
             
             <button id="btnAnalizza" class="btn-main btn-success" onclick="analizzaTutteFoto()" style="display: none;">
-                🔍 Analizza Tutte le Foto
+                ðŸ” Analizza Tutte le Foto
             </button>
         </div>
     </div>
@@ -425,7 +425,7 @@
     <!-- STEP 2: DATI COMUNI -->
     <!-- ============================================== -->
     <div id="step-2-content" class="tab-content container" style="display: none;">
-        <div class="section-title">📋 Step 2: Dati Comuni</div>
+        <div class="section-title">ðŸ“‹ Step 2: Dati Comuni</div>
         
         <div class="card">
             <p style="color: var(--secondary); font-size: 0.9rem;">
@@ -435,7 +435,7 @@
             <div id="fornitoreEstratto" class="fornitore-badge" style="display: none;"></div>
             
             <div class="input-group">
-                <label>🏭 Fornitore/Produttore:</label>
+                <label>ðŸ­ Fornitore/Produttore:</label>
                 <div style="display: flex; gap: 10px;">
                     <select id="fornitore" onchange="aggiornaDescrizioni()" style="flex: 1;">
                         <option value="">Seleziona...</option>
@@ -450,25 +450,25 @@
                         cursor: pointer;
                         font-size: 1.2rem;
                     " title="Aggiungi nuovo fornitore">
-                        ➕
+                        âž•
                     </button>
                 </div>
             </div>
             
             <div class="input-group">
-                <label>📅 Data Arrivo:</label>
+                <label>ðŸ“… Data Arrivo:</label>
                 <input type="date" id="dataArrivo">
             </div>
             
             <div class="two-cols">
                 <div class="input-group">
-                    <label>📏 Spessore (mm):</label>
+                    <label>ðŸ“ Spessore (mm):</label>
                     <select id="spessoreComune">
                         <option value="">Seleziona...</option>
                     </select>
                 </div>
                 <div class="input-group">
-                    <label>↔️ Larghezza (mm):</label>
+                    <label>â†”ï¸ Larghezza (mm):</label>
                     <select id="larghezzaComune">
                         <option value="">Seleziona...</option>
                     </select>
@@ -477,13 +477,13 @@
             
             <div class="two-cols">
                 <div class="input-group">
-                    <label>🏷️ Descrizione:</label>
+                    <label>ðŸ·ï¸ Descrizione:</label>
                     <select id="descrizioneComune">
                         <option value="">Seleziona...</option>
                     </select>
                 </div>
                 <div class="input-group">
-                    <label>🎨 Codice Colore:</label>
+                    <label>ðŸŽ¨ Codice Colore:</label>
                     <select id="codiceColoreComune">
                         <option value="">Seleziona...</option>
                     </select>
@@ -491,21 +491,21 @@
             </div>
             
             <div class="input-group">
-                <label>📦 Numero Rotoli da Caricare:</label>
+                <label>ðŸ“¦ Numero Rotoli da Caricare:</label>
                 <input type="number" id="numRotoliInserire" min="1" max="100" placeholder="Es. 5" value="1">
             </div>
             
             <div class="input-group">
-                <label>📝 Note:</label>
+                <label>ðŸ“ Note:</label>
                 <textarea id="note" rows="2" placeholder="Note aggiuntive..."></textarea>
             </div>
             
             <div style="margin-top: 20px;">
-                <p style="font-weight: bold; color: var(--primary);">📦 Numero rotoli da creare: <span id="numRotoli">1</span></p>
+                <p style="font-weight: bold; color: var(--primary);">ðŸ“¦ Numero rotoli da creare: <span id="numRotoli">1</span></p>
             </div>
             
             <button class="btn-main btn-success" onclick="vaiAlStep(3)">
-                Avanti ➔
+                Avanti âž”
             </button>
         </div>
     </div>
@@ -514,7 +514,7 @@
     <!-- STEP 3: DATI SINGOLI -->
     <!-- ============================================== -->
     <div id="step-3-content" class="tab-content container" style="display: none;">
-        <div class="section-title">✏️ Step 3: Dati per Rotolo</div>
+        <div class="section-title">âœï¸ Step 3: Dati per Rotolo</div>
         
         <div class="card">
             <p style="color: var(--secondary); font-size: 0.9rem;">
@@ -532,11 +532,11 @@
         <div id="rotoloForm" class="card" style="display: none;">
             <div class="collo-header">
                 <span class="collo-number" id="rotoloTitolo">Rotolo #1</span>
-                <span id="rotoloStatus" style="color: var(--success);">✓ Compilato</span>
+                <span id="rotoloStatus" style="color: var(--success);">âœ“ Compilato</span>
             </div>
             
             <div class="input-group">
-                <label>📊 Codice a Barre:</label>
+                <label>ðŸ“Š Codice a Barre:</label>
                 <div style="display: flex; gap: 10px;">
                     <input type="text" id="codiceBarre" placeholder="Codice a barre..." style="flex: 1;">
                     <button onclick="avviaScansione()" style="
@@ -549,7 +549,7 @@
                         cursor: pointer;
                         font-size: 1.2rem;
                     " title="Scansiona QR Code o Codice a Barre">
-                        📷
+                        ðŸ“·
                     </button>
                 </div>
             </div>
@@ -557,42 +557,33 @@
             <div id="scannerContainer" style="display: none; margin: 15px 0;">
                 <div id="reader" style="width: 100%;"></div>
                 <button onclick="chiudiScanner()" class="btn-main btn-secondary" style="margin-top: 10px;">
-                    ❌ Chiudi Scanner
+                    âŒ Chiudi Scanner
                 </button>
             </div>
             
             <div style="margin: 15px 0;">
                 <button onclick="generaEtichetta()" class="btn-main btn-success" style="width: 100%; margin-bottom: 10px;">
-                    🏷️ Genera Etichetta (Anteprima)
+                    ðŸ·ï¸ Genera Etichetta (Anteprima)
                 </button>
                 <button onclick="stampaZebra()" class="btn-main" style="width: 100%; background: var(--secondary);">
-                    🖨️ Stampa su Zebra ZT230
+                    ðŸ–¨ï¸ Stampa su Zebra ZT230
                 </button>
             </div>
             
             <div id="etichettaContainer" style="display: none; margin: 15px 0; padding: 15px; background: white; border: 2px solid var(--primary); border-radius: 12px;">
                 <div id="etichettaContent"></div>
                 <button onclick="stampaEtichetta()" class="btn-main" style="margin-top: 10px;">
-                    🖨️ Stampa Etichetta
+                    ðŸ–¨ï¸ Stampa Etichetta
                 </button>
                 <button onclick="chiudiEtichetta()" class="btn-main btn-secondary" style="margin-top: 10px;">
-                    ❌ Chiudi
+                    âŒ Chiudi
                 </button>
             </div>
             
-            <div class="two-cols">
-                <div class="input-group">
-                    <label>⚖️ Peso (KG):</label>
-                    <input type="number" id="peso" placeholder="Peso...">
-                </div>
-                <div class="input-group">
-                    <label>� Spessore (mm):</label>
-                    <input type="number" step="0.01" id="spessore" placeholder="Spessore...">
-                </div>
-            </div>
+            <div class="two-cols"><div class="input-group"><label>⚖️ Peso (KG):</label><input type="number" id="peso" placeholder="Peso..."></div><div class="input-group"><label>↔️ Larghezza (mm):</label><select id="larghezza"><option value="">Seleziona...</option></select></div></div>
             
             <div class="input-group">
-                <label>🏷️ Descrizione:</label>
+                <label>ðŸ·ï¸ Descrizione:</label>
                 <select id="descrizione" onchange="aggiornaColore()">
                     <option value="">Seleziona descrizione...</option>
                 </select>
@@ -602,21 +593,16 @@
             
             <div class="two-cols">
                 <div class="input-group">
-                    <label>🎨 Codice Colore:</label>
+                    <label>ðŸŽ¨ Codice Colore:</label>
                     <select id="codiceColore">
                         <option value="">Seleziona colore...</option>
                     </select>
                     <input type="text" id="coloreCustom" placeholder="Oppure inserisci nuovo colore..." 
                            style="margin-top:5px; padding:8px; border:1px solid #ddd; border-radius:5px; width:100%;">
                 </div>
-                <div class="input-group">
-                    <label>� Spessore (mm):</label>
-                    <input type="number" step="0.01" id="spessore" placeholder="Spessore...">
-                </div>
-            </div>
-            
+                <div class="input-group"><label>📏 Spessore (mm):</label><select id="spessore"><option value="">Seleziona...</option></select></div></div>
             <button class="btn-main btn-secondary" onclick="salvaRotoloCorrente()">
-                💾 Salva e Prossimo
+                ðŸ’¾ Salva e Prossimo
             </button>
         </div>
     </div>
@@ -625,10 +611,10 @@
     <!-- STEP 4: ESPORTA -->
     <!-- ============================================== -->
     <div id="step-4-content" class="tab-content container" style="display: none;">
-        <div class="section-title">📥 Step 4: Esporta</div>
+        <div class="section-title">ðŸ“¥ Step 4: Esporta</div>
         
         <div class="riepilogo-box">
-            <h4 style="margin-top: 0;">📊 Riepilogo Finale</h4>
+            <h4 style="margin-top: 0;">ðŸ“Š Riepilogo Finale</h4>
             <div class="totali">
                 <div class="totale-item">
                     <div class="totale-num" id="totRotoli">0</div>
@@ -652,19 +638,19 @@
         <div id="tabellaPreview" class="card" style="overflow-x: auto;"></div>
         
         <button class="btn-main btn-success" onclick="esportaExcel()">
-            📥 Esporta in Excel
+            ðŸ“¥ Esporta in Excel
         </button>
         
         <button class="btn-main" onclick="stampaZebraTutti()" style="background: var(--secondary); margin-top: 10px;">
-            🖨️ Stampa Tutte le Etichette su Zebra
+            ðŸ–¨ï¸ Stampa Tutte le Etichette su Zebra
         </button>
         
         <button class="btn-main" onclick="esportaEtichette()" style="background: var(--secondary); margin-top: 10px;">
-            🏷️ Esporta Etichette
+            ðŸ·ï¸ Esporta Etichette
         </button>
         
         <button class="btn-main" onclick="nuovoCarico()" style="background: var(--secondary); margin-top: 10px;">
-            🔄 Nuovo Carico
+            ðŸ”„ Nuovo Carico
         </button>
     </div>
 
@@ -772,7 +758,7 @@
         const LARGHEZZE_LIST = [1060, 1200, 1225, 1250, 2400];        
         // Carica da Supabase
         async function caricaDBArrivi() {
-            console.log("📡 Carico db_mp_arrivi da Supabase...");
+            console.log("ðŸ“¡ Carico db_mp_arrivi da Supabase...");
             try {
                 const res = await fetch(`${SB_URL}/rest/v1/db_mp_arrivi?select=*`, {
                     headers: {
@@ -780,9 +766,9 @@
                         'Authorization': `Bearer ${SB_KEY}`
                     }
                 });
-                console.log("📡 Risposta ricevuta:", res.status);
+                console.log("ðŸ“¡ Risposta ricevuta:", res.status);
                 const data = await res.json();
-                console.log("📡 Dati ricevuti:", data.length, "righe");
+                console.log("ðŸ“¡ Dati ricevuti:", data.length, "righe");
                 
                 const fornitoriSet = new Set();
                 const descMap = {};
@@ -824,21 +810,21 @@
                     dbArrivi.spessori[f] = Array.from(spessoriMap[f]).sort();
                 }
                 
-                console.log("✅ Caricati:", dbArrivi.fornitori.length, "fornitori");
+                console.log("âœ… Caricati:", dbArrivi.fornitori.length, "fornitori");
                 aggiornaSelectFornitore();
             } catch(e) {
-                console.error("❌ Errore:", e);
+                console.error("âŒ Errore:", e);
             }
         }
         
         function aggiornaSelectFornitore() {
-            console.log("🔄 Aggiorna select fornitore...");
+            console.log("ðŸ”„ Aggiorna select fornitore...");
             const sel = document.getElementById('fornitore');
             if (!sel) {
-                console.log("❌ Elemento fornitore non trovato");
+                console.log("âŒ Elemento fornitore non trovato");
                 return;
             }
-            console.log("✅ Elemento fornitore trovato, aggiorno...");
+            console.log("âœ… Elemento fornitore trovato, aggiorno...");
             sel.innerHTML = '<option value="">Seleziona fornitore...</option>';
             dbArrivi.fornitori.forEach(f => {
                 const opt = document.createElement('option');
@@ -846,7 +832,7 @@
                 opt.textContent = f;
                 sel.appendChild(opt);
             });
-            console.log("✅ Select fornitore aggiornata con", dbArrivi.fornitori.length, "fornitori");
+            console.log("âœ… Select fornitore aggiornata con", dbArrivi.fornitori.length, "fornitori");
         }
         
         // Funzioni per ottenere descrizioni e colori da Supabase
@@ -998,7 +984,7 @@
                     continue; // Skip duplicati
                 }
                 
-                // Usa URL.createObjectURL (più veloce di FileReader)
+                // Usa URL.createObjectURL (piÃ¹ veloce di FileReader)
                 const dataUrl = URL.createObjectURL(file);
                 
                 nuoveFoto.push({
@@ -1014,7 +1000,7 @@
             // Aggiungi le nuove foto allo stato
             stato.foto.push(...nuoveFoto);
             
-            console.log("📸 Foto caricate:", stato.foto.length);
+            console.log("ðŸ“¸ Foto caricate:", stato.foto.length);
             
             // Reset input
             event.target.value = '';
@@ -1029,7 +1015,7 @@
             
             // Force update UI
             if (stato.foto.length > 0 && stato.step === 1) {
-                // Il pulsante dovrebbe già essere abilitato dalla validazione
+                // Il pulsante dovrebbe giÃ  essere abilitato dalla validazione
             }
         }
         
@@ -1041,14 +1027,14 @@
             if (!grid) return;
             
             if (stato.foto.length === 0) {
-                grid.innerHTML = '<div style="text-align:center; padding:20px; color:#999;">📷 Nessuna foto caricata<br>Clicca il pulsante sopra per caricare</div>';
+                grid.innerHTML = '<div style="text-align:center; padding:20px; color:#999;">ðŸ“· Nessuna foto caricata<br>Clicca il pulsante sopra per caricare</div>';
                 if (btnAnalizza) btnAnalizza.style.display = 'none';
                 return;
             }
             
             if (btnAnalizza) {
                 btnAnalizza.style.display = 'block';
-                btnAnalizza.textContent = `🔍 Analizza ${stato.foto.length} Foto`;
+                btnAnalizza.textContent = `ðŸ” Analizza ${stato.foto.length} Foto`;
             }
             
             // Mostra anteprima con stile migliorato
@@ -1056,9 +1042,9 @@
                 <div class="foto-item ${foto.elaborata ? 'processed' : ''}" style="min-height:80px;">
                     <img src="${foto.dataUrl}" alt="Foto ${idx + 1}" 
                          style="width:100%;height:80px;object-fit:cover;border-radius:6px;"
-                         onerror="this.style.display='none';this.parentNode.innerHTML='❌ Errore'">
+                         onerror="this.style.display='none';this.parentNode.innerHTML='âŒ Errore'">
                     <div class="foto-num" style="position:absolute;bottom:0;left:0;right:0;background:rgba(0,0,0,0.7);color:white;font-size:10px;padding:2px;text-align:center;">
-                        ${foto.elaborata ? '✓' : '#' + (idx + 1)}
+                        ${foto.elaborata ? 'âœ“' : '#' + (idx + 1)}
                     </div>
                 </div>
             `).join('');
@@ -1101,7 +1087,7 @@
                 
                 await worker.terminate();
                 
-                // Determina fornitore più frequente
+                // Determina fornitore piÃ¹ frequente
                 const fornitori = {};
                 stato.rotoli.forEach(r => {
                     if (r.fornitore) {
@@ -1134,7 +1120,7 @@
             const righe = testo.toUpperCase().split('\n').map(r => r.trim()).filter(r => r);
             const tCompleto = testo.toUpperCase();
             
-            console.log("📝 OCR Testo:", testo.substring(0, 200));
+            console.log("ðŸ“ OCR Testo:", testo.substring(0, 200));
             
             const dati = {
                 codiceBarre: '',
@@ -1164,8 +1150,8 @@
             if (bcMatch) dati.codiceBarre = 'S' + bcMatch[1].replace(/\s/g, '');
             
             // MQ - MIGLIORATO
-            let mqMatch = tCompleto.match(/(\d+[.,]\d{1,3})\s*(?:MQ|M2|M²)/i) ||
-                         tCompleto.match(/(?:MQ|M²)[^\d]*(\d+[.,]\d{1,3})/i) ||
+            let mqMatch = tCompleto.match(/(\d+[.,]\d{1,3})\s*(?:MQ|M2|MÂ²)/i) ||
+                         tCompleto.match(/(?:MQ|MÂ²)[^\d]*(\d+[.,]\d{1,3})/i) ||
                          tCompleto.match(/(\d+[.,]\d{1,3})\s*M\s*2/i);
             if (mqMatch) {
                 dati.mq = parseFloat(mqMatch[1].replace(',', '.'));
@@ -1217,7 +1203,7 @@
                 dati.mq = Math.round((dati.larghezza / 1000) * dati.lunghezza * 100) / 100;
             }
             
-            console.log("📊 Dati estratti:", dati);
+            console.log("ðŸ“Š Dati estratti:", dati);
             
             return dati;
         }
@@ -1226,7 +1212,7 @@
         // INSERIMENTO MANUALE SENZA FOTO
         // ============================================
         function inserisciManualmente() {
-            const numRotoli = parseInt(document.getElementById('numRotoliInserire').value) || 1;
+            const numRotoli = parseInt(document.getElementById('numRotoliStep1').value) || 1;
             
             // Crea N rotoli vuoti
             for (let i = 0; i < numRotoli; i++) {
@@ -1244,7 +1230,7 @@
                 });
             }
             
-            console.log(`📝 ${numRotoli} rotoli vuoti creati per inserimento manuale`);
+            console.log(`ðŸ“ ${numRotoli} rotoli vuoti creati per inserimento manuale`);
             
             // Va direttamente allo step 2
             stato.step = 2;
@@ -1305,7 +1291,7 @@
             stato.rotoli.forEach((rotolo, idx) => {
                 const opt = document.createElement('option');
                 opt.value = idx;
-                opt.textContent = `Rotolo #${idx + 1} ${rotolo.compilato ? '✓' : '⚠️'}`;
+                opt.textContent = `Rotolo #${idx + 1} ${rotolo.compilato ? 'âœ“' : 'âš ï¸'}`;
                 select.appendChild(opt);
             });
             
@@ -1327,7 +1313,7 @@
             
             document.getElementById('rotoloForm').style.display = 'block';
             document.getElementById('rotoloTitolo').textContent = `Rotolo #${idx + 1}`;
-            document.getElementById('rotoloStatus').textContent = rotolo.compilato ? '✓ Compilato' : '⚠️ Da compilare';
+            document.getElementById('rotoloStatus').textContent = rotolo.compilato ? 'âœ“ Compilato' : 'âš ï¸ Da compilare';
             document.getElementById('rotoloStatus').style.color = rotolo.compilato ? 'var(--success)' : 'var(--warning)';
             
             // Pre-compila con i dati comuni se vuoti nel rotolo
@@ -1345,8 +1331,20 @@
             // **POPOLA I CAMPI HTML** dal rotolo object
             document.getElementById('codiceBarre').value = rotolo.codiceBarre || '';
             document.getElementById('peso').value = rotolo.peso || '';
-            document.getElementById('spessore').value = rotolo.spessore || spessoreComune || '';
-            document.getElementById('larghezza').value = rotolo.larghezza || larghezzaComune || '';
+            
+            // Popola i select dropdown per Larghezza e Spessore
+            aggiornaLarghezzaSpessore();
+            
+            // Seleziona i valori nei dropdown
+            const larghezzaSelect = document.getElementById('larghezza');
+            const spessoreSelect = document.getElementById('spessore');
+            
+            if (rotolo.larghezza || larghezzaComune) {
+                larghezzaSelect.value = (rotolo.larghezza || larghezzaComune).toString();
+            }
+            if (rotolo.spessore || spessoreComune) {
+                spessoreSelect.value = (rotolo.spessore || spessoreComune).toString();
+            }
             
             // Popola descrizioni (standard + custom)
             const fornitore = document.getElementById('fornitore').value;
@@ -1363,7 +1361,7 @@
                 descSelect.appendChild(opt);
             });
             
-            // Se la descrizione corrente non è nella lista, mostrala come option
+            // Se la descrizione corrente non Ã¨ nella lista, mostrala come option
             if (rotolo.descrizione && !tutteDesc.includes(rotolo.descrizione)) {
                 const opt = document.createElement('option');
                 opt.value = rotolo.descrizione;
@@ -1386,7 +1384,7 @@
                 colSelect.appendChild(opt);
             });
             
-            // Se il colore corrente non è nella lista, mostralo come option
+            // Se il colore corrente non Ã¨ nella lista, mostralo come option
             if (rotolo.colore && !tuttiColori.includes(rotolo.colore)) {
                 const opt = document.createElement('option');
                 opt.value = rotolo.colore;
@@ -1478,7 +1476,7 @@
                     // Successo - codice scansionato
                     document.getElementById('codiceBarre').value = decodedText;
                     chiudiScanner();
-                    alert('✅ Codice scansionato: ' + decodedText);
+                    alert('âœ… Codice scansionato: ' + decodedText);
                 },
                 (errorMessage) => {
                     // Errore - ignora
@@ -1603,7 +1601,7 @@
                             if (error) {
                                 console.error('Errore QR Code:', error);
                             } else {
-                                console.log('✅ QR Code generato:', qrData);
+                                console.log('âœ… QR Code generato:', qrData);
                             }
                         }
                     );
@@ -1681,14 +1679,14 @@
                 });
                 
                 if (response.ok) {
-                    alert('✅ Etichetta inviata alla stampante Zebra ZT230!');
+                    alert('âœ… Etichetta inviata alla stampante Zebra ZT230!');
                     console.log('Etichetta stampata con codice:', codiceBarre);
                 } else {
-                    alert(`⚠️ Errore HTTP ${response.status}. Verifica la connessione alla stampante.`);
+                    alert(`âš ï¸ Errore HTTP ${response.status}. Verifica la connessione alla stampante.`);
                 }
             } catch (error) {
                 console.error('Errore stampa Zebra:', error);
-                alert(`❌ Errore: Non riesco a contattare la stampante all'indirizzo ${zebraIp}. Verifica che:\n- La stampante sia accesa\n- L'IP sia corretto\n- Il browser supporti CORS`);
+                alert(`âŒ Errore: Non riesco a contattare la stampante all'indirizzo ${zebraIp}. Verifica che:\n- La stampante sia accesa\n- L'IP sia corretto\n- Il browser supporti CORS`);
             }
         }
         
@@ -1772,18 +1770,18 @@
             }
             
             nascondiLoading();
-            alert(`✅ Stampa completata!\nStampate: ${stampate}/${stato.rotoli.length}\nErrori: ${errori}`);
+            alert(`âœ… Stampa completata!\nStampate: ${stampate}/${stato.rotoli.length}\nErrori: ${errori}`);
         }
         
         // ============================================
         // AGGIUNGI NUOVO FORNITORE A SUPABASE
         // ============================================
         async function aggiungiFornitoreSupabase() {
-            console.log("➕ Aggiungi fornitore...");
+            console.log("âž• Aggiungi fornitore...");
             const fornitore = document.getElementById('nuovoFornitore').value.trim().toUpperCase();
             const descrizione = document.getElementById('nuovaDescrizione').value.trim();
             const colore = document.getElementById('nuovoColore').value.trim();
-            console.log("➕ Dati fornitore:", { fornitore, descrizione, colore });
+            console.log("âž• Dati fornitore:", { fornitore, descrizione, colore });
             
             if (!fornitore) {
                 alert('Inserisci il nome del fornitore!');
@@ -1819,7 +1817,7 @@
                 });
                 
                 if (res.ok) {
-                    console.log("✅ Fornitore aggiunto, ricarico database...");
+                    console.log("âœ… Fornitore aggiunto, ricarico database...");
                     // Ricarica il database
                     await caricaDBArrivi();
                     
@@ -1829,7 +1827,7 @@
                     
                     // Aggiorna le tendine
                     aggiornaDescrizioni();
-                    console.log("✅ Fornitore selezionato e tendine aggiornate");
+                    console.log("âœ… Fornitore selezionato e tendine aggiornate");
                     
                     // Pulisci i campi
                     document.getElementById('nuovoFornitore').value = '';
@@ -1840,15 +1838,15 @@
                     document.getElementById('modalNuovoFornitore').style.display = 'none';
                     
                     nascondiLoading();
-                    alert('✅ Fornitore aggiunto con successo!');
+                    alert('âœ… Fornitore aggiunto con successo!');
                 } else {
                     nascondiLoading();
-                    alert('❌ Errore durante l\'aggiunta del fornitore');
+                    alert('âŒ Errore durante l\'aggiunta del fornitore');
                 }
             } catch (e) {
                 nascondiLoading();
                 console.error('Errore:', e);
-                alert('❌ Errore di connessione');
+                alert('âŒ Errore di connessione');
             }
         }
         
@@ -1868,7 +1866,7 @@
             stato.rotoli[idx].codiceBarre = document.getElementById('codiceBarre').value;
             stato.rotoli[idx].peso = parseInt(document.getElementById('peso').value) || 0;
             
-            // Salva spessore e larghezza dal campo del rotolo (può essere modificato per questo rotolo)
+            // Salva spessore e larghezza dal campo del rotolo (puÃ² essere modificato per questo rotolo)
             const spessoreValue = document.getElementById('spessore').value;
             const larghezzaValue = document.getElementById('larghezza').value;
             
@@ -1883,10 +1881,10 @@
                 // Aggiungi alle descrizioni custom se non esiste
                 if (!descrizioniCustom.includes(descrizione)) {
                     descrizioniCustom.push(descrizione);
-                    console.log("📝 Nuova descrizione custom:", descrizione);
+                    console.log("ðŸ“ Nuova descrizione custom:", descrizione);
                 }
             }
-            // Se niente è stato scelto, usa il valore comune
+            // Se niente Ã¨ stato scelto, usa il valore comune
             if (!descrizione) {
                 descrizione = document.getElementById('descrizioneComune').value;
             }
@@ -1900,10 +1898,10 @@
                 // Aggiungi ai colori custom se non esiste
                 if (!coloriCustom.includes(colore)) {
                     coloriCustom.push(colore);
-                    console.log("🎨 Nuovo colore custom:", colore);
+                    console.log("ðŸŽ¨ Nuovo colore custom:", colore);
                 }
             }
-            // Se niente è stato scelto, usa il valore comune
+            // Se niente Ã¨ stato scelto, usa il valore comune
             if (!colore) {
                 colore = document.getElementById('codiceColoreComune').value;
             }
@@ -1922,7 +1920,7 @@
                         stato.rotoli[i].spessore = spessore;
                     }
                 }
-                console.log("📋 Dati propagati a tutti i rotoli (descrizione, colore)");
+                console.log("ðŸ“‹ Dati propagati a tutti i rotoli (descrizione, colore)");
             }
             
             // Verifica se compilato
@@ -2022,7 +2020,7 @@
             const nomeFile = `arrivi_${dataArrivo.replace(/-/g, '')}_${Date.now()}.xlsx`;
             XLSX.writeFile(wb, nomeFile);
             
-            alert('✅ File Excel scaricato!');
+            alert('âœ… File Excel scaricato!');
         }
         
         function esportaEtichette() {
@@ -2197,7 +2195,7 @@
                 );
             });
             
-            alert('✅ Etichette generate! Usa Ctrl+P per stampare o salvare come PDF');
+            alert('âœ… Etichette generate! Usa Ctrl+P per stampare o salvare come PDF');
         }
         
         function nuovoCarico() {
@@ -2242,29 +2240,29 @@
                 width: 100%;
                 box-shadow: 0 10px 40px rgba(0,0,0,0.3);
             ">
-                <h3 style="margin-top: 0; color: var(--primary);">➕ Aggiungi Nuovo Fornitore</h3>
+                <h3 style="margin-top: 0; color: var(--primary);">âž• Aggiungi Nuovo Fornitore</h3>
                 
                 <div class="input-group">
-                    <label>🏭 Nome Fornitore/Produttore:</label>
+                    <label>ðŸ­ Nome Fornitore/Produttore:</label>
                     <input type="text" id="nuovoFornitore" placeholder="Es. LAMPRE, MARCEGAGLIA...">
                 </div>
                 
                 <div class="input-group">
-                    <label>📝 Descrizione:</label>
+                    <label>ðŸ“ Descrizione:</label>
                     <input type="text" id="nuovaDescrizione" placeholder="Es. LAMPRE 0.50 ZINCATO">
                 </div>
                 
                 <div class="input-group">
-                    <label>🎨 Codice Colore:</label>
+                    <label>ðŸŽ¨ Codice Colore:</label>
                     <input type="text" id="nuovoColore" placeholder="Es. RAL 9002">
                 </div>
                 
                 <div style="display: flex; gap: 10px; margin-top: 20px;">
                     <button onclick="aggiungiFornitoreSupabase()" class="btn-main btn-success" style="flex: 1;">
-                        ✅ Salva
+                        âœ… Salva
                     </button>
                     <button onclick="nascondiModalNuovoFornitore()" class="btn-main btn-secondary" style="flex: 1;">
-                        ❌ Annulla
+                        âŒ Annulla
                     </button>
                 </div>
             </div>
@@ -2275,3 +2273,7 @@
     </script>
 </body>
 </html>
+
+
+
+
