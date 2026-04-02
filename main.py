@@ -33,9 +33,15 @@ elif "GOOGLE_CREDENTIALS_JSON" in os.environ:
     os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "google_key_temp.json"
 
 # Inizializzazione client Supabase (usando variabili d'ambiente)
-url: str = os.environ.get("SUPABASE_URL", "https://vnzrewcbnoqbqvzckome.supabase.co")
-key: str = os.environ.get("SUPABASE_KEY", "sb_publishable_Sq9txbu-PmKdbxETSx2cjw_WqWEFBPO")
-supabase: Client = create_client(url, key) if url and key else None
+url: str = os.environ.get("SUPABASE_URL", "...fallback...")
+key: str = os.environ.get("SUPABASE_KEY", "")
+supabase = None
+if url and key:
+    try:
+        supabase = create_client(url, key)
+    except Exception as e:
+        print(f"Supabase client init failed, continuerò senza DB: {e}")
+        supabase = None
 
 def estrai_dati_chirurgica(testo_ocr: str):
     """Estrae dati dall'OCR - Focalizzato su Barcode, Peso e MQ"""
