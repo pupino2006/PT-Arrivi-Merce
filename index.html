@@ -1548,8 +1548,12 @@
                     display: flex;
                     flex-direction: column;
                 ">
-                    <div style="text-align: left; border-bottom: 2px solid #000; padding-bottom: 3mm; margin-bottom: 3mm; flex-shrink: 0;">
-                        <h2 style="margin: 0; font-size: 20pt; letter-spacing: 1px;">ETICHETTA ROTOLO</h2>
+                    <div style="display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #000; padding-bottom: 3mm; margin-bottom: 3mm; flex-shrink: 0;">
+                        <h2 style="margin: 0; font-size: 20pt; letter-spacing: 1px; flex-grow: 1;">ETICHETTA ROTOLO</h2>
+                        <div id="qrCodeContainer" style="display: flex; flex-direction: column; align-items: center; margin-left: 5mm;">
+                            <img id="qrCodeImg" style="width: 100px; height: 100px; display: block; border: 1px solid #000;" src="" alt="QR Code">
+                            <p style="margin: 2mm 0 0 0; font-size: 9pt; font-weight: bold; text-align: center;">${codiceBarre}</p>
+                        </div>
                     </div>
                     
                     <div style="margin-bottom: 3mm; flex-grow: 1;">
@@ -1582,13 +1586,6 @@
                             <span>${dataArrivo || '-'}</span>
                         </div>
                     </div>
-                    
-                    <div style="text-align: center; margin-top: auto; padding-top: 3mm; border-top: 1px solid #000; flex-shrink: 0;">
-                        <div id="qrCodeContainer" style="display: inline-block; padding: 2mm; background: white; border: 1px solid #000; margin-bottom: 2mm;">
-                            <img id="qrCodeImg" style="width: 120px; height: 120px; display: block;" src="" alt="QR Code">
-                        </div>
-                        <p style="margin: 2mm 0 0 0; font-size: 10pt; font-weight: bold;">${codiceBarre}</p>
-                    </div>
                 </div>
             `;
             
@@ -1617,7 +1614,7 @@
             QRCode.toDataURL(
                 qrData,
                 {
-                    width: 80,
+                    width: 100,
                     margin: 0,
                     color: {
                         dark: '#000000',
@@ -2086,7 +2083,9 @@
                             page-break-after: avoid;
                         }
                         .header {
-                            text-align: center;
+                            display: flex;
+                            justify-content: space-between;
+                            align-items: flex-start;
                             border-bottom: 2px solid #000;
                             padding-bottom: 3mm;
                             margin-bottom: 3mm;
@@ -2094,6 +2093,25 @@
                         .header h2 {
                             margin: 0;
                             font-size: 18pt;
+                            flex-grow: 1;
+                        }
+                        .header-qr {
+                            display: flex;
+                            flex-direction: column;
+                            align-items: center;
+                            margin-left: 5mm;
+                        }
+                        .header-qr img {
+                            width: 100px;
+                            height: 100px;
+                            border: 1px solid #000;
+                            display: block;
+                        }
+                        .header-qr p {
+                            margin: 2mm 0 0 0;
+                            font-size: 9pt;
+                            font-weight: bold;
+                            text-align: center;
                         }
                         .header p {
                             margin: 2mm 0 0 0;
@@ -2137,6 +2155,10 @@
                     <div class="etichetta">
                         <div class="header">
                             <h2>ETICHETTA ROTOLO</h2>
+                            <div class="header-qr">
+                                <img id="qrImg${idx}" alt="QR Code">
+                                <p>${rotolo.codiceBarre || 'Codice lotto non inserito'}</p>
+                            </div>
                         </div>
                         
                         <div class="dati">
@@ -2168,13 +2190,6 @@
                                 <span>Data Arrivo:</span>
                                 <span>${dataArrivo || '-'}</span>
                             </div>
-                        </div>
-                        
-                        <div class="qr-container">
-                            <div class="qr-code">
-                                <img id="qrImg${idx}" width="120" height="120" alt="QR Code" style="display: block; margin: auto;">
-                            </div>
-                            <p class="codice-lotto">${rotolo.codiceBarre || 'Codice lotto non inserito'}</p>
                         </div>
                     </div>
                 `;
@@ -2210,7 +2225,7 @@
                     QRCode.toDataURL(
                         qrData,
                         {
-                            width: 120,
+                            width: 100,
                             margin: 1,
                             color: {
                                 dark: '#000000',
