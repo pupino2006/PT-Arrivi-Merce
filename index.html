@@ -1535,7 +1535,7 @@
                     flex-direction: column;
                 ">
                     <div style="text-align: center; border-bottom: 2px solid #000; padding-bottom: 3mm; margin-bottom: 3mm; flex-shrink: 0;">
-                        <h2 style="margin: 0; font-size: 14pt;">ETICHETTA ROTOLIO</h2>
+                        <h2 style="margin: 0; font-size: 14pt;">ETICHETTA ROTOLO</h2>
                         <p style="margin: 2mm 0 0 0; font-size: 10pt;">PT - Arrivi Merce</p>
                     </div>
                     
@@ -1585,46 +1585,48 @@
             printWindow.document.write(etichettaHTML);
             printWindow.document.write('</body></html>');
             printWindow.document.close();
-            
-            // Genera QR Code nella nuova scheda SOLO con il codice a barre
-            setTimeout(() => {
-                try {
-                    const qrData = codiceBarre || '';
-                    const qrImg = printWindow.document.getElementById('qrCodeImg');
-                    if (!qrImg) {
-                        console.error('Impossibile trovare qrCodeImg in printWindow');
-                        return;
-                    }
 
-                    QRCode.toDataURL(
-                        qrData,
-                        {
-                            width: 80,
-                            margin: 0,
-                            color: {
-                                dark: '#000000',
-                                light: '#ffffff'
-                            }
-                        },
-                        function(error, url) {
-                            if (error) {
-                                console.error('Errore QR Code:', error);
-                            } else {
-                                qrImg.src = url;
-                                console.log('✔ QR Code generato (img):', qrData);
-                            }
-                        }
-                    );
-                } catch (e) {
-                    console.error('Errore generazione QR:', e);
+            // Genera QR Code nella nuova scheda SOLO con il codice a barre
+            const qrData = codiceBarre || '';
+            const qrImg = printWindow.document.getElementById('qrCodeImg');
+            if (!qrImg) {
+                console.error('Impossibile trovare qrCodeImg in printWindow');
+                return;
+            }
+
+            if (!qrData) {
+                qrImg.alt = 'Codice QR non disponibile';
+                qrImg.style.border = '1px solid #ccc';
+                qrImg.style.background = '#f5f5f5';
+                return;
+            }
+
+            QRCode.toDataURL(
+                qrData,
+                {
+                    width: 80,
+                    margin: 0,
+                    color: {
+                        dark: '#000000',
+                        light: '#ffffff'
+                    }
+                },
+                function(error, url) {
+                    if (error) {
+                        console.error('Errore QR Code:', error);
+                        qrImg.alt = 'Errore generazione QR';
+                    } else {
+                        qrImg.src = url;
+                        console.log('✔ QR Code generato (img):', qrData);
+                    }
                 }
-            }, 700);
+            );
         }
         
         function stampaEtichetta() {
             const etichettaContent = document.getElementById('etichettaContent').innerHTML;
             const printWindow = window.open('', '', 'width=600,height=600');
-            printWindow.document.write('<html><head><title>Etichetta Rotolio</title></head><body>');
+            printWindow.document.write('<html><head><title>Etichetta Rotolo</title></head><body>');
             printWindow.document.write(etichettaContent);
             printWindow.document.write('</body></html>');
             printWindow.document.close();
@@ -2121,7 +2123,7 @@
                 etichetteHTML += `
                     <div class="etichetta">
                         <div class="header">
-                            <h2>ETICHETTA ROTOLIO</h2>
+                            <h2>ETICHETTA ROTOLO</h2>
                             <p>PT - Arrivi Merce</p>
                         </div>
                         
@@ -2176,43 +2178,55 @@
             printWindow.document.write(etichetteHTML);
             printWindow.document.close();
             
-            // Genera QR code per ogni etichetta
-            stato.rotoli.forEach((rotolo, idx) => {
+            // Genera QR code per ogni etichetta con attesa su tutte le promesse
+            const qrPromises = stato.rotoli.map((rotolo, idx) => {
                 const qrData = rotolo.codiceBarre || '';
                 const qrImg = printWindow.document.getElementById(`qrImg${idx}`);
                 if (!qrImg) {
                     console.error(`Impossibile trovare qrImg${idx}`);
-                    return;
+                    return Promise.resolve();
                 }
 
-                QRCode.toDataURL(
-                    qrData,
-                    {
-                        width: 120,
-                        margin: 1,
-                        color: {
-                            dark: '#000000',
-                            light: '#ffffff'
+                if (!qrData) {
+                    qrImg.alt = 'Codice QR non disponibile';
+                    qrImg.style.border = '1px solid #ccc';
+                    qrImg.style.background = '#f5f5f5';
+                    return Promise.resolve();
+                }
+
+                return new Promise((resolve) => {
+                    QRCode.toDataURL(
+                        qrData,
+                        {
+                            width: 120,
+                            margin: 1,
+                            color: {
+                                dark: '#000000',
+                                light: '#ffffff'
+                            }
+                        },
+                        function(error, url) {
+                            if (error) {
+                                console.error('Errore generazione QR:', error);
+                                qrImg.alt = 'Errore QR';
+                            } else {
+                                qrImg.src = url;
+                                console.log(`✔ QR Code generato per rotolo ${idx + 1}`);
+                            }
+                            resolve();
                         }
-                    },
-                    function(error, url) {
-                        if (error) {
-                            console.error('Errore generazione QR:', error);
-                        } else {
-                            qrImg.src = url;
-                        }
-                    }
-                );
+                    );
+                });
             });
-            
-            if (pdf) {
-                setTimeout(() => {
+
+            Promise.all(qrPromises).then(() => {
+                if (pdf) {
                     printWindow.focus();
                     printWindow.print();
-                }, 900);
-            } else {
-                alert('✔ Etichette generate! Usa Ctrl+P per stampare o salvare come PDF');
-            }
+                } else {
+                    alert('✔ Etichette generate! Usa Ctrl+P per stampare o salvare come PDF');
+                }
+            });
         }
         
         function esportaEtichettePDF() {
