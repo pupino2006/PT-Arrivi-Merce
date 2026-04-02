@@ -1596,14 +1596,15 @@
                 const etichettaHTML = `
                     <div style="
                         font-family: 'Segoe UI', sans-serif;
-                        width: 160mm;
-                        height: 230mm;
+                        width: 230mm;
+                        height: 160mm;
                         padding: 5mm;
                         box-sizing: border-box;
                         background: white;
                         border: 1px solid #000;
                         display: flex;
                         flex-direction: column;
+                        page-break-after: always;
                     ">
                             <div style="display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #000; padding-bottom: 3mm; margin-bottom: 3mm; flex-shrink: 0;">
                                 <img src="ptsimbolo.png" style="width: 25mm; height: auto; margin-right: 3mm;">
@@ -1649,7 +1650,7 @@
                     
                     // Apri anteprima in nuova scheda CON il QR già dentro
                     const printWindow = window.open('', '_blank');
-                    printWindow.document.write('<html><head><title>Anteprima Etichetta</title><style>body {margin:0; padding:10px;} </style></head><body>');
+                    printWindow.document.write('<html><head><title>Anteprima Etichetta</title><style>@page{size:230mm 160mm landscape;margin:0;}body{margin:0;padding:0;}@media print{body{margin:0;padding:0;}}</style></head><body>');
                     printWindow.document.write(etichettaHTML);
                     printWindow.document.write('</body></html>');
                     printWindow.document.close();
@@ -1685,9 +1686,31 @@
             const zebraIp = '192.168.68.162';
             const isSecure = window.location.protocol === 'https:';
             if (isSecure) {
-                return { url: null, error: 'Mixed Content: la pagina e\' su HTTPS ma la stampante usa HTTP. Apri l\'app da http://localhost per stampare.' };
+                // HTTPS (GitHub Pages) non puo' contattare dispositivi HTTP locali.
+                // Avvia il server Python locale: python main.py
+                // Poi apri http://<IP-PC>:8000 dallo smartphone
+                return { mode: 'proxy', url: null, error: 'Servizio stampa non disponibile da HTTPS.\nAvvia main.py e apri http://' + zebraIp + ':8000 dallo smartphone (stessa rete WiFi).' };
             }
-            return { url: `http://${zebraIp}/pstprnt`, error: null };
+            return { mode: 'direct', url: `http://${zebraIp}/pstprnt`, error: null };
+        }
+
+        async function sendZPL(zebra, zplCommand) {
+            if (zebra.mode === 'proxy') {
+                const res = await fetch(zebra.url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ zpl: zplCommand })
+                });
+                const data = await res.json();
+                if (!res.ok || !data.ok) throw new Error(data.detail || 'Errore stampa');
+            } else {
+                const res = await fetch(zebra.url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'text/plain' },
+                    body: zplCommand
+                });
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            }
         }
 
         async function stampaZebra() {
@@ -1731,21 +1754,12 @@
 ^FT400,70^BQN,2,8^FDQA${codiceBarre}^FS
 ^XZ`;
                 
-                const response = await fetch(zebra.url, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'text/plain' },
-                    body: zplCommand
-                });
-                
-                if (response.ok) {
-                    alert('Etichetta inviata alla stampante Zebra ZT230!');
-                    console.log('Etichetta stampata con codice:', codiceBarre);
-                } else {
-                    alert(`Errore HTTP ${response.status}. Verifica la connessione alla stampante.`);
-                }
+                await sendZPL(zebra, zplCommand);
+                alert('Etichetta inviata alla stampante Zebra ZT230!');
+                console.log('Etichetta stampata con codice:', codiceBarre);
             } catch (error) {
                 console.error('Errore stampa Zebra:', error);
-                alert(`Errore: Non riesco a contattare la stampante.\nVerifica che:\n- La stampante sia accesa\n- L\'IP 192.168.68.162 sia raggiungibile\n- L\'app sia aperta da http://localhost (non HTTPS)`);
+                alert(`Errore: ${error.message || 'Non riesco a contattare la stampante.'}\nVerifica che:\n- La stampante sia accesa\n- L'IP 192.168.68.162 sia raggiungibile`);
             }
         }
         
@@ -1811,17 +1825,8 @@
 ^FT400,70^BQN,2,8^FDQA${codiceBarre}^FS
 ^XZ`;
                     
-                    const response = await fetch(zebra.url, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'text/plain' },
-                        body: zplCommand
-                    });
-                    
-                    if (response.ok) {
-                        stampate++;
-                    } else {
-                        errori++;
-                    }
+                    await sendZPL(zebra, zplCommand);
+                    stampate++;
                 } catch (error) {
                     errori++;
                     console.error(`Errore stampa rotolo ${i + 1}:`, error);
@@ -2130,7 +2135,7 @@
                         <title>Etichette Rotoli - ${dataArrivo}</title>
                         <style>
                             @page {
-                                size: 160mm 230mm;
+                                size: 230mm 160mm landscape;
                                 margin: 0;
                             }
                             body {
@@ -2139,8 +2144,8 @@
                                 padding: 0;
                             }
                             .etichetta {
-                                width: 160mm;
-                                height: 230mm;
+                                width: 230mm;
+                                height: 160mm;
                                 padding: 5mm;
                                 box-sizing: border-box;
                                 background: white;

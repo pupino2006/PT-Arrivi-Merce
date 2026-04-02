@@ -1,11 +1,13 @@
 from fastapi import FastAPI, UploadFile, File, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import StreamingResponse
+from fastapi.responses import StreamingResponse, FileResponse
+from fastapi.staticfiles import StaticFiles
 import pandas as pd
 import re
 import io
 import json
 import os
+import httpx
 from datetime import datetime
 from google.cloud import vision
 from pydantic import BaseModel
@@ -134,6 +136,27 @@ async def add_supplier(supplier: NewSupplier):
             
     return await get_suppliers()
 
+class PrintPayload(BaseModel):
+    zpl: str
+    printer_ip: Optional[str] = "192.168.68.162"
+
+@app.post("/api/print")
+async def print_zebra(data: PrintPayload):
+    """Proxy per inviare comandi ZPL alla stampante Zebra (risolve Mixed Content)"""
+    printer_url = f"http://{data.printer_ip}/pstprnt"
+    try:
+        async with httpx.AsyncClient(timeout=10) as client:
+            response = await client.post(
+                printer_url,
+                content=data.zpl.encode("utf-8"),
+                headers={"Content-Type": "text/plain"}
+            )
+            return {"ok": response.status_code == 200, "status": response.status_code}
+    except httpx.ConnectError:
+        raise HTTPException(status_code=503, detail=f"Stampante {data.printer_ip} non raggiungibile")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 class Collo(BaseModel):
     barcode: str
     peso: int
@@ -182,6 +205,20 @@ async def export_excel(data: PayloadExport):
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         headers={"Content-Disposition": f"attachment; filename=arrivi_{datetime.now().strftime('%Y%m%d')}.xlsx"}
     )
+
+# Servizio file statici (index.html, immagini, ecc.)
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
+@app.get("/")
+async def serve_index():
+    return FileResponse(os.path.join(BASE_DIR, "index.html"))
+
+@app.get("/{file_path:path}")
+async def serve_static(file_path: str):
+    full_path = os.path.join(BASE_DIR, file_path)
+    if os.path.isfile(full_path):
+        return FileResponse(full_path)
+    return FileResponse(os.path.join(BASE_DIR, "index.html"))
 
 if __name__ == "__main__":
     import uvicorn
