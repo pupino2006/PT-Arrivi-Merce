@@ -249,8 +249,6 @@ function App() {
       'Descrizione': getLabelDescription(c),
       'Codice Colore': getLabelColor(c),
       'Peso': c.peso,
-      'Metri Quadri': c.mq,
-      'Lunghezza': c.lunghezza,
       'Terminato': commonData.terminato,
       'Linea': commonData.linea,
       'Larghezza': commonData.larghezza,
@@ -279,8 +277,7 @@ function App() {
 ^FO50,150^A0N,80,80^FD${collo.barcode || 'N/A'}^FS
 ^FO50,250^A0N,40,40^FD${commonData.spessore ? parseFloat(commonData.spessore).toFixed(2) : '0.00'} x ${commonData.larghezza || '0'}^FS
 ^FO50,300^A0N,40,40^FDKG ${collo.peso || '0'}^FS
-^FO400,300^A0N,40,40^FDMQ ${collo.mq || '0.00'}^FS
-^FO50,350^BQN,2,8^FDQA,${JSON.stringify({lotto: collo.barcode, fornitore: commonData.fornitore, descrizione: labelDescrizione, colore: labelColore, spessore: commonData.spessore, larghezza: commonData.larghezza, peso: collo.peso, mq: collo.mq, lunghezza: collo.lunghezza, data: commonData.data_arrivo})}^FS
+^FO50,350^BQN,2,8^FDQA,${JSON.stringify({lotto: collo.barcode, fornitore: commonData.fornitore, descrizione: labelDescrizione, colore: labelColore, spessore: commonData.spessore, larghezza: commonData.larghezza, peso: collo.peso, data: commonData.data_arrivo})}^FS
 ^XZ
         `;
         
@@ -319,8 +316,7 @@ function App() {
 ^FO50,150^A0N,80,80^FD${collo.barcode || 'N/A'}^FS
 ^FO50,250^A0N,40,40^FD${commonData.spessore ? parseFloat(commonData.spessore).toFixed(2) : '0.00'} x ${commonData.larghezza || '0'}^FS
 ^FO50,300^A0N,40,40^FDKG ${collo.peso || '0'}^FS
-^FO400,300^A0N,40,40^FDMQ ${collo.mq || '0.00'}^FS
-^FO50,350^BQN,2,8^FDQA,${JSON.stringify({lotto: collo.barcode, fornitore: commonData.fornitore, descrizione: labelDescrizione, colore: labelColore, spessore: commonData.spessore, larghezza: commonData.larghezza, peso: collo.peso, mq: collo.mq, lunghezza: collo.lunghezza, data: commonData.data_arrivo})}^FS
+^FO50,350^BQN,2,8^FDQA,${JSON.stringify({lotto: collo.barcode, fornitore: commonData.fornitore, descrizione: labelDescrizione, colore: labelColore, spessore: commonData.spessore, larghezza: commonData.larghezza, peso: collo.peso, data: commonData.data_arrivo})}^FS
 ^XZ
         `;
 
@@ -352,6 +348,17 @@ function App() {
             <>
               <p className="mb-4">Carica le foto delle etichette per iniziare</p>
               <input type="file" multiple onChange={handleUpload} className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"/>
+              <div className="mt-4">
+                <button 
+                  onClick={() => {
+                    setColli([{ barcode: '', peso: '', mq: '', lunghezza: '', completed: false, descrizione: commonData.descrizione, colore: commonData.colore, nome_foto: 'Inserimento manuale' }]);
+                    setStep(2);
+                  }}
+                  className="w-full bg-green-600 text-white py-2 rounded-lg font-bold hover:bg-green-700"
+                >
+                  ➕ Inserisci Manualmente
+                </button>
+              </div>
             </>
           )}
         </div>
@@ -459,12 +466,6 @@ function App() {
               />
               Applica descrizione e codice colore a tutte le etichette
             </label>
-            <div className="text-xs text-gray-600">
-              {applyCommonLabelToAll
-                ? 'La descrizione e il codice colore comuni verranno usati per tutte le etichette.'
-                : 'Ora puoi modificare descrizione e codice colore per ogni rotolo individualmente.'}
-            </div>
-            <div className="text-xs text-gray-600">Se MQ e lunghezza sono vuoti, puoi comunque segnare il rotolo come completato.</div>
             <div className="text-xs text-gray-600">Rotolo attivo: {activeCollo + 1}/{colli.length}</div>
           </div>
           {colli.map((collo, index) => (
@@ -502,23 +503,11 @@ function App() {
                   </div>
                 </div>
               )}
-              <div className="grid grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 gap-4">
                 <div>
                   <label className="block text-xs font-bold text-gray-600">PESO (KG)</label>
                   <input type="number" className="w-full p-2 border rounded" value={collo.peso} onChange={e => {
                     const nc = [...colli]; nc[index].peso = e.target.value; setColli(nc);
-                  }} />
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-gray-600">MQ</label>
-                  <input type="number" step="0.01" className="w-full p-2 border rounded" value={collo.mq} onChange={e => {
-                    const nc = [...colli]; nc[index].mq = e.target.value; setColli(nc);
-                  }} />
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-gray-600">LUNGHEZZA (mm)</label>
-                  <input type="number" className="w-full p-2 border rounded" value={collo.lunghezza} onChange={e => {
-                    const nc = [...colli]; nc[index].lunghezza = e.target.value; setColli(nc);
                   }} />
                 </div>
               </div>
@@ -578,13 +567,10 @@ function App() {
                       </div>
                     </div>
                     
-                    {/* Peso e MQ */}
-                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+                    {/* Peso */}
+                    <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '4px' }}>
                       <div style={{ fontSize: '8pt', fontWeight: 'bold' }}>
                         KG {collo.peso || '0'}
-                      </div>
-                      <div style={{ fontSize: '8pt', fontWeight: 'bold' }}>
-                        MQ {collo.mq || '0.00'}
                       </div>
                     </div>
                     
@@ -599,7 +585,6 @@ function App() {
                           spessore: commonData.spessore || '',
                           larghezza: commonData.larghezza || '',
                           peso: collo.peso || '',
-                          mq: collo.mq || '',
                           data: commonData.data_arrivo || ''
                         })}
                         size={30}
@@ -611,6 +596,17 @@ function App() {
               )}
             </div>
           ))}
+          
+          <div className="flex gap-2">
+            <button 
+              onClick={() => {
+                setColli([...colli, { barcode: '', peso: '', mq: '', lunghezza: '', completed: false, descrizione: commonData.descrizione, colore: commonData.colore, nome_foto: 'Inserimento manuale' }]);
+              }}
+              className="flex-1 bg-green-600 text-white py-3 rounded-lg font-bold hover:bg-green-700"
+            >
+              ➕ Aggiungi Nuovo Rotolo
+            </button>
+          </div>
           
           {isScanning !== null && (
             <div className="fixed inset-0 bg-black z-50 flex flex-col p-4">
@@ -659,13 +655,10 @@ function App() {
                     </div>
                   </div>
                   
-                  {/* Peso e MQ */}
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10mm' }}>
+                  {/* Peso */}
+                  <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '10mm' }}>
                     <div style={{ fontSize: '16pt', fontWeight: 'bold' }}>
                       KG {colli[showLabel]?.peso || '0'}
-                    </div>
-                    <div style={{ fontSize: '16pt', fontWeight: 'bold' }}>
-                      MQ {colli[showLabel]?.mq || '0.00'}
                     </div>
                   </div>
                   
@@ -680,7 +673,6 @@ function App() {
                         spessore: commonData.spessore || '',
                         larghezza: commonData.larghezza || '',
                         peso: colli[showLabel]?.peso || '',
-                        mq: colli[showLabel]?.mq || '',
                         data: commonData.data_arrivo || ''
                       })}
                       size={80}
