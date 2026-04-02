@@ -375,10 +375,10 @@
 
     <!-- TABS -->
     <nav class="tabs">
-        <button class="tab-btn active" id="tab-btn-1" onclick="vaiAlStep(1)">1. ðŸ“¸</button>
-        <button class="tab-btn" id="tab-btn-2" onclick="vaiAlStep(2)" disabled>2. ðŸ“‹</button>
-        <button class="tab-btn" id="tab-btn-3" onclick="vaiAlStep(3)" disabled>3. âœï¸</button>
-        <button class="tab-btn" id="tab-btn-4" onclick="vaiAlStep(4)" disabled>4. ðŸ“¥</button>
+        <button class="tab-btn active" id="tab-btn-1" onclick="vaiAlStep(1)">1</button>
+        <button class="tab-btn" id="tab-btn-2" onclick="vaiAlStep(2)" disabled>2</button>
+        <button class="tab-btn" id="tab-btn-3" onclick="vaiAlStep(3)" disabled>3</button>
+        <button class="tab-btn" id="tab-btn-4" onclick="vaiAlStep(4)" disabled>4</button>
     </nav>
 
     <!-- STEP INDICATOR -->
@@ -395,28 +395,29 @@
     <!-- STEP 1: CARICAMENTO FOTO -->
     <!-- ============================================== -->
     <div id="step-1-content" class="tab-content container">
-        <div class="section-title">ðŸ“¸ Step 1: Carica le Foto</div>
+        <div class="section-title">Step 1: Carica le Foto</div>
         
         <div class="card">
             <p style="color: var(--secondary); font-size: 0.9rem; margin-bottom: 15px;">
-                ðŸ“· Carica le foto delle <strong>etichette</strong> di tutti i rotoli. 
-                L'app analizzerÃ  automaticamente tutte le foto e estrarrÃ  i dati comuni.
+                Carica le foto delle <strong>etichette</strong> di tutti i rotoli. 
+                L'app analizzerà automaticamente tutte le foto e estrarrà i dati comuni.
             </p>
             
             <input type="file" id="fotoInput" accept="image/*" multiple style="display: none;" onchange="gestisciFotoSelezionate(event)">
             
             <button class="btn-main btn-warning" onclick="document.getElementById('fotoInput').click()">
-                ðŸ“ Seleziona Foto dalla Galleria
+                Seleziona Foto dalla Galleria
             </button>
             
-            <div class="input-group" style="margin-bottom: 15px;"><label>?? Quanti rotoli inserire?</label><input type="number" id="numRotoliStep1" min="1" max="100" value="1" style="width: 100%; padding: 10px;"></div><button class="btn-main btn-success" onclick="inserisciManualmente()" style="margin-top: 10px;">
-                âž• Inserisci Manualmente
+            <div class="input-group" style="margin-bottom: 15px;"><label>Quanti rotoli inserire?</label><input type="number" id="numRotoliStep1" min="1" max="100" value="1" style="width: 100%; padding: 10px;"></div>
+            <button class="btn-main btn-success" onclick="inserisciManualmente()" style="margin-top: 10px;">
+                Inserisci Manualmente
             </button>
             
             <div id="fotoGrid" class="foto-grid"></div>
             
             <button id="btnAnalizza" class="btn-main btn-success" onclick="analizzaTutteFoto()" style="display: none;">
-                ðŸ” Analizza Tutte le Foto
+                Analizza Tutte le Foto
             </button>
         </div>
     </div>
@@ -425,7 +426,7 @@
     <!-- STEP 2: DATI COMUNI -->
     <!-- ============================================== -->
     <div id="step-2-content" class="tab-content container" style="display: none;">
-        <div class="section-title">ðŸ“‹ Step 2: Dati Comuni</div>
+        <div class="section-title">Step 2: Dati Comuni</div>
         
         <div class="card">
             <p style="color: var(--secondary); font-size: 0.9rem;">
@@ -435,7 +436,7 @@
             <div id="fornitoreEstratto" class="fornitore-badge" style="display: none;"></div>
             
             <div class="input-group">
-                <label>ðŸ­ Fornitore/Produttore:</label>
+                <label>Fornitore/Produttore:</label>
                 <div style="display: flex; gap: 10px;">
                     <select id="fornitore" onchange="aggiornaDescrizioni()" style="flex: 1;">
                         <option value="">Seleziona...</option>
@@ -450,25 +451,25 @@
                         cursor: pointer;
                         font-size: 1.2rem;
                     " title="Aggiungi nuovo fornitore">
-                        âž•
+                        +
                     </button>
                 </div>
             </div>
             
             <div class="input-group">
-                <label>ðŸ“… Data Arrivo:</label>
+                <label>Data Arrivo:</label>
                 <input type="date" id="dataArrivo">
             </div>
             
             <div class="two-cols">
                 <div class="input-group">
-                    <label>ðŸ“ Spessore (mm):</label>
+                    <label>Spessore (mm):</label>
                     <select id="spessoreComune">
                         <option value="">Seleziona...</option>
                     </select>
                 </div>
                 <div class="input-group">
-                    <label>â†”ï¸ Larghezza (mm):</label>
+                    <label>Larghezza (mm):</label>
                     <select id="larghezzaComune">
                         <option value="">Seleziona...</option>
                     </select>
@@ -477,13 +478,13 @@
             
             <div class="two-cols">
                 <div class="input-group">
-                    <label>ðŸ·ï¸ Descrizione:</label>
+                    <label>Descrizione:</label>
                     <select id="descrizioneComune">
                         <option value="">Seleziona...</option>
                     </select>
                 </div>
                 <div class="input-group">
-                    <label>ðŸŽ¨ Codice Colore:</label>
+                    <label>Codice Colore:</label>
                     <select id="codiceColoreComune">
                         <option value="">Seleziona...</option>
                     </select>
@@ -491,21 +492,21 @@
             </div>
             
             <div class="input-group">
-                <label>ðŸ“¦ Numero Rotoli da Caricare:</label>
+                <label>Numero Rotoli da Caricare:</label>
                 <input type="number" id="numRotoliInserire" min="1" max="100" placeholder="Es. 5" value="1">
             </div>
             
             <div class="input-group">
-                <label>ðŸ“ Note:</label>
+                <label>Note:</label>
                 <textarea id="note" rows="2" placeholder="Note aggiuntive..."></textarea>
             </div>
             
             <div style="margin-top: 20px;">
-                <p style="font-weight: bold; color: var(--primary);">ðŸ“¦ Numero rotoli da creare: <span id="numRotoli">1</span></p>
+                <p style="font-weight: bold; color: var(--primary);">Numero rotoli da creare: <span id="numRotoli">1</span></p>
             </div>
             
             <button class="btn-main btn-success" onclick="vaiAlStep(3)">
-                Avanti âž”
+                Avanti ➜
             </button>
         </div>
     </div>
@@ -514,7 +515,7 @@
     <!-- STEP 3: DATI SINGOLI -->
     <!-- ============================================== -->
     <div id="step-3-content" class="tab-content container" style="display: none;">
-        <div class="section-title">âœï¸ Step 3: Dati per Rotolo</div>
+        <div class="section-title">Step 3: Dati per Rotolo</div>
         
         <div class="card">
             <p style="color: var(--secondary); font-size: 0.9rem;">
@@ -532,11 +533,11 @@
         <div id="rotoloForm" class="card" style="display: none;">
             <div class="collo-header">
                 <span class="collo-number" id="rotoloTitolo">Rotolo #1</span>
-                <span id="rotoloStatus" style="color: var(--success);">âœ“ Compilato</span>
+                <span id="rotoloStatus" style="color: var(--success);">✔ Compilato</span>
             </div>
             
             <div class="input-group">
-                <label>ðŸ“Š Codice a Barre:</label>
+                <label>Codice a Barre:</label>
                 <div style="display: flex; gap: 10px;">
                     <input type="text" id="codiceBarre" placeholder="Codice a barre..." style="flex: 1;">
                     <button onclick="avviaScansione()" style="
@@ -549,7 +550,7 @@
                         cursor: pointer;
                         font-size: 1.2rem;
                     " title="Scansiona QR Code o Codice a Barre">
-                        ðŸ“·
+                        Scansione
                     </button>
                 </div>
             </div>
@@ -557,33 +558,33 @@
             <div id="scannerContainer" style="display: none; margin: 15px 0;">
                 <div id="reader" style="width: 100%;"></div>
                 <button onclick="chiudiScanner()" class="btn-main btn-secondary" style="margin-top: 10px;">
-                    âŒ Chiudi Scanner
+                    Chiudi Scanner
                 </button>
             </div>
             
             <div style="margin: 15px 0;">
                 <button onclick="generaEtichetta()" class="btn-main btn-success" style="width: 100%; margin-bottom: 10px;">
-                    ðŸ·ï¸ Genera Etichetta (Anteprima)
+                    Genera Etichetta (Anteprima)
                 </button>
                 <button onclick="stampaZebra()" class="btn-main" style="width: 100%; background: var(--secondary);">
-                    ðŸ–¨ï¸ Stampa su Zebra ZT230
+                    Stampa su Zebra ZT230
                 </button>
             </div>
             
             <div id="etichettaContainer" style="display: none; margin: 15px 0; padding: 15px; background: white; border: 2px solid var(--primary); border-radius: 12px;">
                 <div id="etichettaContent"></div>
                 <button onclick="stampaEtichetta()" class="btn-main" style="margin-top: 10px;">
-                    ðŸ–¨ï¸ Stampa Etichetta
+                    Stampa Etichetta
                 </button>
                 <button onclick="chiudiEtichetta()" class="btn-main btn-secondary" style="margin-top: 10px;">
-                    âŒ Chiudi
+                    Chiudi
                 </button>
             </div>
             
-            <div class="two-cols"><div class="input-group"><label>⚖️ Peso (KG):</label><input type="number" id="peso" placeholder="Peso..."></div><div class="input-group"><label>↔️ Larghezza (mm):</label><select id="larghezza"><option value="">Seleziona...</option></select></div></div>
+            <div class="two-cols"><div class="input-group"><label>Peso (KG):</label><input type="number" id="peso" placeholder="Peso..."></div><div class="input-group"><label>Larghezza (mm):</label><select id="larghezza"><option value="">Seleziona...</option></select></div></div>
             
             <div class="input-group">
-                <label>ðŸ·ï¸ Descrizione:</label>
+                <label>Descrizione:</label>
                 <select id="descrizione" onchange="aggiornaColore()">
                     <option value="">Seleziona descrizione...</option>
                 </select>
@@ -593,16 +594,16 @@
             
             <div class="two-cols">
                 <div class="input-group">
-                    <label>ðŸŽ¨ Codice Colore:</label>
+                    <label>Codice Colore:</label>
                     <select id="codiceColore">
                         <option value="">Seleziona colore...</option>
                     </select>
                     <input type="text" id="coloreCustom" placeholder="Oppure inserisci nuovo colore..." 
                            style="margin-top:5px; padding:8px; border:1px solid #ddd; border-radius:5px; width:100%;">
                 </div>
-                <div class="input-group"><label>📏 Spessore (mm):</label><select id="spessore"><option value="">Seleziona...</option></select></div></div>
+                <div class="input-group"><label>Spessore (mm):</label><select id="spessore"><option value="">Seleziona...</option></select></div></div>
             <button class="btn-main btn-secondary" onclick="salvaRotoloCorrente()">
-                ðŸ’¾ Salva e Prossimo
+                Salva e Prossimo
             </button>
         </div>
     </div>
@@ -611,7 +612,7 @@
     <!-- STEP 4: ESPORTA -->
     <!-- ============================================== -->
     <div id="step-4-content" class="tab-content container" style="display: none;">
-        <div class="section-title">ðŸ“¥ Step 4: Esporta</div>
+        <div class="section-title">Step 4: Esporta</div>
         
         <div class="riepilogo-box">
             <h4 style="margin-top: 0;">ðŸ“Š Riepilogo Finale</h4>
@@ -638,19 +639,23 @@
         <div id="tabellaPreview" class="card" style="overflow-x: auto;"></div>
         
         <button class="btn-main btn-success" onclick="esportaExcel()">
-            ðŸ“¥ Esporta in Excel
+            📥 Esporta in Excel
         </button>
-        
+
         <button class="btn-main" onclick="stampaZebraTutti()" style="background: var(--secondary); margin-top: 10px;">
-            ðŸ–¨ï¸ Stampa Tutte le Etichette su Zebra
+            🖨️ Stampa Tutte le Etichette su Zebra
         </button>
-        
+
         <button class="btn-main" onclick="esportaEtichette()" style="background: var(--secondary); margin-top: 10px;">
-            ðŸ·ï¸ Esporta Etichette
+            🏷️ Anteprima Etichette
         </button>
-        
+
+        <button class="btn-main" onclick="esportaEtichettePDF()" style="background: var(--secondary); margin-top: 10px;">
+            🖨️ Esporta Etichette come PDF
+        </button>
+
         <button class="btn-main" onclick="nuovoCarico()" style="background: var(--secondary); margin-top: 10px;">
-            ðŸ”„ Nuovo Carico
+            🔄 Nuovo Carico
         </button>
     </div>
 
@@ -1291,7 +1296,7 @@
             stato.rotoli.forEach((rotolo, idx) => {
                 const opt = document.createElement('option');
                 opt.value = idx;
-                opt.textContent = `Rotolo #${idx + 1} ${rotolo.compilato ? 'âœ“' : 'âš ï¸'}`;
+                opt.textContent = `Rotolo #${idx + 1} ${rotolo.compilato ? '✔' : '❌'}`;
                 select.appendChild(opt);
             });
             
@@ -1313,7 +1318,7 @@
             
             document.getElementById('rotoloForm').style.display = 'block';
             document.getElementById('rotoloTitolo').textContent = `Rotolo #${idx + 1}`;
-            document.getElementById('rotoloStatus').textContent = rotolo.compilato ? 'âœ“ Compilato' : 'âš ï¸ Da compilare';
+            document.getElementById('rotoloStatus').textContent = rotolo.compilato ? '✔ Compilato' : '❌ Da compilare';
             document.getElementById('rotoloStatus').style.color = rotolo.compilato ? 'var(--success)' : 'var(--warning)';
             
             // Pre-compila con i dati comuni se vuoti nel rotolo
@@ -1567,7 +1572,7 @@
                     
                     <div style="text-align: center; margin-top: auto; padding-top: 3mm; border-top: 1px solid #000; flex-shrink: 0;">
                         <div id="qrCodeContainer" style="display: inline-block; padding: 2mm; background: white; border: 1px solid #000; margin-bottom: 2mm;">
-                            <canvas id="qrCodeCanvas" style="width: 80px; height: 80px;"></canvas>
+                            <img id="qrCodeImg" style="width: 80px; height: 80px; display: block;" src="" alt="QR Code">
                         </div>
                         <p style="margin: 2mm 0 0 0; font-size: 9pt; font-weight: bold;">${codiceBarre}</p>
                     </div>
@@ -1584,10 +1589,14 @@
             // Genera QR Code nella nuova scheda SOLO con il codice a barre
             setTimeout(() => {
                 try {
-                    const qrData = codiceBarre; // Contiene SOLO il codice a barre
-                    
-                    QRCode.toCanvas(
-                        printWindow.document.getElementById('qrCodeCanvas'),
+                    const qrData = codiceBarre || '';
+                    const qrImg = printWindow.document.getElementById('qrCodeImg');
+                    if (!qrImg) {
+                        console.error('Impossibile trovare qrCodeImg in printWindow');
+                        return;
+                    }
+
+                    QRCode.toDataURL(
                         qrData,
                         {
                             width: 80,
@@ -1597,18 +1606,19 @@
                                 light: '#ffffff'
                             }
                         },
-                        function(error) {
+                        function(error, url) {
                             if (error) {
                                 console.error('Errore QR Code:', error);
                             } else {
-                                console.log('âœ… QR Code generato:', qrData);
+                                qrImg.src = url;
+                                console.log('✔ QR Code generato (img):', qrData);
                             }
                         }
                     );
                 } catch (e) {
                     console.error('Errore generazione QR:', e);
                 }
-            }, 500);
+            }, 700);
         }
         
         function stampaEtichetta() {
@@ -2010,6 +2020,7 @@
                 'Codice Colore': r.colore || '',
                 'Peso': r.peso || 0,
                 'Terminato': '',
+                ' ': '',
                 'Linea': r.larghezza < 2000 ? '1' : '2'
             }));
             
@@ -2023,7 +2034,7 @@
             alert('âœ… File Excel scaricato!');
         }
         
-        function esportaEtichette() {
+        function esportaEtichette(pdf = false) {
             const fornitore = document.getElementById('fornitore').value;
             const dataArrivo = document.getElementById('dataArrivo').value;
             
@@ -2147,7 +2158,7 @@
                         
                         <div class="qr-container">
                             <div class="qr-code">
-                                <canvas id="qrCanvas${idx}" width="120" height="120"></canvas>
+                                <img id="qrImg${idx}" width="120" height="120" alt="QR Code" style="display: block; margin: auto;">
                             </div>
                             <p class="codice-lotto">${rotolo.codiceBarre || 'Codice lotto non inserito'}</p>
                         </div>
@@ -2167,19 +2178,14 @@
             
             // Genera QR code per ogni etichetta
             stato.rotoli.forEach((rotolo, idx) => {
-                const qrData = JSON.stringify({
-                    fornitore: fornitore,
-                    descrizione: rotolo.descrizione || '',
-                    colore: rotolo.colore || '',
-                    spessore: rotolo.spessore || '',
-                    larghezza: rotolo.larghezza || '',
-                    codiceBarre: rotolo.codiceBarre || '',
-                    peso: rotolo.peso || '',
-                    dataArrivo: dataArrivo
-                });
-                
-                QRCode.toCanvas(
-                    printWindow.document.getElementById(`qrCanvas${idx}`),
+                const qrData = rotolo.codiceBarre || '';
+                const qrImg = printWindow.document.getElementById(`qrImg${idx}`);
+                if (!qrImg) {
+                    console.error(`Impossibile trovare qrImg${idx}`);
+                    return;
+                }
+
+                QRCode.toDataURL(
                     qrData,
                     {
                         width: 120,
@@ -2189,15 +2195,30 @@
                             light: '#ffffff'
                         }
                     },
-                    function(error) {
-                        if (error) console.error('Errore generazione QR:', error);
+                    function(error, url) {
+                        if (error) {
+                            console.error('Errore generazione QR:', error);
+                        } else {
+                            qrImg.src = url;
+                        }
                     }
                 );
             });
             
-            alert('âœ… Etichette generate! Usa Ctrl+P per stampare o salvare come PDF');
+            if (pdf) {
+                setTimeout(() => {
+                    printWindow.focus();
+                    printWindow.print();
+                }, 900);
+            } else {
+                alert('✔ Etichette generate! Usa Ctrl+P per stampare o salvare come PDF');
+            }
         }
         
+        function esportaEtichettePDF() {
+            esportaEtichette(true);
+        }
+
         function nuovoCarico() {
             if (confirm('Vuoi iniziare un nuovo carico?')) {
                 location.reload();
