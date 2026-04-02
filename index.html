@@ -409,6 +409,10 @@
                 📁 Seleziona Foto dalla Galleria
             </button>
             
+            <button class="btn-main btn-success" onclick="inserisciManualmente()" style="margin-top: 10px;">
+                ➕ Inserisci Manualmente
+            </button>
+            
             <div id="fotoGrid" class="foto-grid"></div>
             
             <button id="btnAnalizza" class="btn-main btn-success" onclick="analizzaTutteFoto()" style="display: none;">
@@ -559,8 +563,8 @@
                     <input type="number" id="peso" placeholder="Peso...">
                 </div>
                 <div class="input-group">
-                    <label>📐 MQ:</label>
-                    <input type="number" step="0.01" id="mq" placeholder="Metri quadri...">
+                    <label>� Spessore (mm):</label>
+                    <input type="number" step="0.01" id="spessore" placeholder="Spessore...">
                 </div>
             </div>
             
@@ -592,10 +596,6 @@
                 <div class="input-group">
                     <label>↔️ Larghezza (mm):</label>
                     <input type="number" id="larghezza" placeholder="Larghezza...">
-                </div>
-                <div class="input-group">
-                    <label>↕️ Lunghezza (m):</label>
-                    <input type="number" step="0.1" id="lunghezza" placeholder="Lunghezza...">
                 </div>
             </div>
             
@@ -908,8 +908,8 @@
                 return document.getElementById('fornitore').value !== '';
             }
             if (step === 3) {
-                // Verifica che tutti i rotoli siano compilati (almeno peso o mq)
-                return stato.rotoli.every(r => r.peso > 0 || r.mq > 0);
+                // Verifica che tutti i rotoli abbiano almeno il peso
+                return stato.rotoli.every(r => r.peso > 0);
             }
             return true;
         }
@@ -1199,6 +1199,32 @@
         }
         
         // ============================================
+        // INSERIMENTO MANUALE SENZA FOTO
+        // ============================================
+        function inserisciManualmente() {
+            // Crea un rotolo vuoto
+            stato.rotoli.push({
+                codiceBarre: '',
+                peso: 0,
+                mq: 0,
+                fornitore: '',
+                spessore: 0,
+                larghezza: 0,
+                lunghezza: 0,
+                colore: '',
+                descrizione: '',
+                nomeFoto: 'Inserimento manuale',
+                compilato: false
+            });
+            
+            console.log("📝 Rotolo vuoto creato per inserimento manuale");
+            
+            // Va direttamente allo step 2
+            stato.step = 2;
+            aggiornaUI();
+        }
+        
+        // ============================================
         // STEP 2 - DATI COMUNI
         // ============================================
         function aggiornaDescrizioni() {
@@ -1266,10 +1292,8 @@
             // Popola campi
             document.getElementById('codiceBarre').value = rotolo.codiceBarre || '';
             document.getElementById('peso').value = rotolo.peso || '';
-            document.getElementById('mq').value = rotolo.mq || '';
             document.getElementById('spessore').value = rotolo.spessore || '';
             document.getElementById('larghezza').value = rotolo.larghezza || '';
-            document.getElementById('lunghezza').value = rotolo.lunghezza || '';
             
             // Popola descrizioni (standard + custom)
             const fornitore = document.getElementById('fornitore').value;
@@ -1459,10 +1483,6 @@
                             <span>${peso || '-'} KG</span>
                         </div>
                         <div style="display: flex; justify-content: space-between; margin-bottom: 2mm; font-size: 10pt;">
-                            <span style="font-weight: bold;">MQ:</span>
-                            <span>${mq || '-'} m²</span>
-                        </div>
-                        <div style="display: flex; justify-content: space-between; margin-bottom: 2mm; font-size: 10pt;">
                             <span style="font-weight: bold;">Data Arrivo:</span>
                             <span>${dataArrivo || '-'}</span>
                         </div>
@@ -1493,7 +1513,6 @@
                 larghezza: larghezza,
                 codiceBarre: codiceBarre || '',
                 peso: peso,
-                mq: mq,
                 dataArrivo: dataArrivo
             });
             
@@ -1620,10 +1639,8 @@
             // Salva dati basic
             stato.rotoli[idx].codiceBarre = document.getElementById('codiceBarre').value;
             stato.rotoli[idx].peso = parseInt(document.getElementById('peso').value) || 0;
-            stato.rotoli[idx].mq = parseFloat(document.getElementById('mq').value) || 0;
             stato.rotoli[idx].spessore = parseFloat(document.getElementById('spessore').value) || 0;
             stato.rotoli[idx].larghezza = parseInt(document.getElementById('larghezza').value) || 0;
-            stato.rotoli[idx].lunghezza = parseFloat(document.getElementById('lunghezza').value) || 0;
             
             // Gestisci descrizione (da select o custom)
             let descrizione = document.getElementById('descrizione').value;
@@ -1668,7 +1685,7 @@
             }
             
             // Verifica se compilato
-            stato.rotoli[idx].compilato = stato.rotoli[idx].peso > 0 && stato.rotoli[idx].mq > 0;
+            stato.rotoli[idx].compilato = stato.rotoli[idx].peso > 0;
             
             // Vai al prossimo rotolo
             if (idx < stato.rotoli.length - 1) {
@@ -1692,16 +1709,15 @@
         // STEP 4 - ESPORTAZIONE
         // ============================================
         function aggiornaRiepilogo() {
-            let totMQ = 0, totPeso = 0, totLinea1 = 0;
+            let totPeso = 0, totLinea1 = 0;
             
             stato.rotoli.forEach(r => {
-                totMQ += r.mq || 0;
                 totPeso += r.peso || 0;
                 if (r.larghezza < 2000) totLinea1++;
             });
             
             document.getElementById('totRotoli').textContent = stato.rotoli.length;
-            document.getElementById('totMQ').textContent = totMQ.toFixed(2);
+            document.getElementById('totMQ').textContent = '0';
             document.getElementById('totPeso').textContent = totPeso;
             document.getElementById('totLinea1').textContent = totLinea1;
             
@@ -1716,7 +1732,6 @@
                             <th>#</th>
                             <th>Cod.Barre</th>
                             <th>Peso</th>
-                            <th>MQ</th>
                             <th>Largh.</th>
                             <th>Linea</th>
                         </tr>
@@ -1731,7 +1746,6 @@
                         <td>${idx + 1}</td>
                         <td>${r.codiceBarre || '-'}</td>
                         <td>${r.peso || 0}</td>
-                        <td>${r.mq || 0}</td>
                         <td>${r.larghezza || 0}</td>
                         <td>${linea}</td>
                     </tr>
@@ -1747,8 +1761,7 @@
             const dataArrivo = document.getElementById('dataArrivo').value;
             const note = document.getElementById('note').value;
             
-            // FORMATO RICHIESTO:
-            // Codice a barre | Produttore/Fornitore | Spessore dichiarato | Arrivo | Descrizione | Codice Colore | Peso | Metri Quadri | Terminato | Linea
+            // FORMATO SENZA MQ E LUNGHEZZA
             const dati = stato.rotoli.map((r, idx) => ({
                 'Codice a barre': r.codiceBarre || '',
                 'Produttore/Fornitore': fornitore,
@@ -1757,7 +1770,6 @@
                 'Descrizione': r.descrizione || '',
                 'Codice Colore': r.colore || '',
                 'Peso': r.peso || 0,
-                'Metri Quadri': r.mq || 0,
                 'Terminato': '',
                 'Linea': r.larghezza < 2000 ? '1' : '2'
             }));
@@ -1889,10 +1901,6 @@
                                 <span>${rotolo.peso || '-'} KG</span>
                             </div>
                             <div class="riga">
-                                <span>MQ:</span>
-                                <span>${rotolo.mq || '-'} m²</span>
-                            </div>
-                            <div class="riga">
                                 <span>Data Arrivo:</span>
                                 <span>${dataArrivo || '-'}</span>
                             </div>
@@ -1928,7 +1936,6 @@
                     larghezza: rotolo.larghezza || '',
                     codiceBarre: rotolo.codiceBarre || '',
                     peso: rotolo.peso || '',
-                    mq: rotolo.mq || '',
                     dataArrivo: dataArrivo
                 });
                 
