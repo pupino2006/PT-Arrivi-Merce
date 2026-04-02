@@ -20,6 +20,9 @@
     <!-- QRCode per generare QR Code -->
     <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js"></script>
     
+    <!-- jsPDF per esportazione PDF -->
+    <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+    
     <style>
         :root { 
             --primary: #004a99; 
@@ -563,15 +566,15 @@
                 <button onclick="generaEtichetta()" class="btn-main btn-success" style="width: 100%; margin-bottom: 10px;">
                     Genera Etichetta (Anteprima)
                 </button>
-                <button onclick="stampaZebra()" class="btn-main" style="width: 100%; background: var(--secondary);">
-                    Stampa su Zebra ZT230
+                <button onclick="esportaEtichettePDF()" class="btn-main" style="width: 100%; background: var(--secondary);">
+                    Esporta PDF
                 </button>
             </div>
             
             <div id="etichettaContainer" style="display: none; margin: 15px 0; padding: 15px; background: white; border: 2px solid var(--primary); border-radius: 12px;">
                 <div id="etichettaContent"></div>
-                <button onclick="stampaEtichetta()" class="btn-main" style="margin-top: 10px;">
-                    Stampa Etichetta
+                <button onclick="esportaEtichettePDF()" class="btn-main" style="margin-top: 10px;">
+                    Esporta PDF
                 </button>
                 <button onclick="chiudiEtichetta()" class="btn-main btn-secondary" style="margin-top: 10px;">
                     Chiudi
@@ -639,8 +642,8 @@
             📥 Esporta in Excel
         </button>
 
-        <button class="btn-main" onclick="stampaZebraTutti()" style="background: var(--secondary); margin-top: 10px;">
-            🖨️ Stampa Tutte le Etichette su Zebra
+        <button class="btn-main" onclick="esportaTuttiPDF()" style="background: var(--secondary); margin-top: 10px;">
+            📄 Esporta Tutte le Etichette PDF
         </button>
 
         <button class="btn-main" onclick="esportaEtichette()" style="background: var(--secondary); margin-top: 10px;">
@@ -648,7 +651,7 @@
         </button>
 
         <button class="btn-main" onclick="esportaEtichettePDF()" style="background: var(--secondary); margin-top: 10px;">
-            🖨️ Esporta Etichette come PDF
+            📄 Esporta PDF Singolo
         </button>
 
         <button class="btn-main" onclick="nuovoCarico()" style="background: var(--secondary); margin-top: 10px;">
@@ -2135,7 +2138,7 @@
                         <title>Etichette Rotoli - ${dataArrivo}</title>
                         <style>
                             @page {
-                                size: 230mm 160mm landscape;
+                                size: 150mm 220mm portrait;
                                 margin: 0;
                             }
                             body {
@@ -2144,9 +2147,9 @@
                                 padding: 0;
                             }
                             .etichetta {
-                                width: 230mm;
-                                height: 160mm;
-                                padding: 5mm;
+                                width: 150mm;
+                                height: 220mm;
+                                padding: 8mm;
                                 box-sizing: border-box;
                                 background: white;
                                 border: 1px solid #000;
@@ -2160,8 +2163,8 @@
                                 justify-content: space-between;
                                 align-items: flex-start;
                                 border-bottom: 2px solid #000;
-                                padding-bottom: 3mm;
-                                margin-bottom: 3mm;
+                                padding-bottom: 5mm;
+                                margin-bottom: 8mm;
                             }
                             .header-logo {
                                 width: 25mm;
@@ -2170,8 +2173,13 @@
                             }
                             .header h2 {
                                 margin: 0;
-                                font-size: 18pt;
+                                font-size: 36pt;
+                                font-weight: bold;
                                 flex-grow: 1;
+                            }
+                            .header h3 {
+                                margin: 0;
+                                font-size: 28pt;
                             }
                             .header-qr {
                                 display: flex;
@@ -2180,25 +2188,25 @@
                                 margin-left: 5mm;
                             }
                             .header-qr img {
-                                width: 100px;
-                                height: 100px;
+                                width: 120px;
+                                height: 120px;
                                 border: 1px solid #000;
                                 display: block;
                             }
                             .header-qr p {
-                                margin: 2mm 0 0 0;
-                                font-size: 9pt;
+                                margin: 3mm 0 0 0;
+                                font-size: 18pt;
                                 font-weight: bold;
                                 text-align: center;
                             }
                             .dati {
-                                margin-bottom: 3mm;
+                                margin-bottom: 6mm;
                             }
                             .riga {
                                 display: flex;
                                 justify-content: space-between;
-                                margin-bottom: 2mm;
-                                font-size: 12pt;
+                                margin-bottom: 4mm;
+                                font-size: 24pt;
                             }
                             .riga span:first-child {
                                 font-weight: bold;
@@ -2281,7 +2289,105 @@
         }
         
         function esportaEtichettePDF() {
-            esportaEtichette(true);
+            if (stato.rotoli.length === 0) {
+                alert('Nessun rotolo da esportare!');
+                return;
+            }
+            
+            const jsPDF = window.jspdf.jsPDF;
+            const doc = new jsPDF({
+                orientation: 'portrait',
+                unit: 'mm',
+                format: [150, 220]
+            });
+            
+            const rotolo = stato.rotoli[stato.rotoloAttivo];
+            if (!rotolo) {
+                alert('Nessun rotolo selezionato!');
+                return;
+            }
+            
+            const fornitore = document.getElementById('fornitore').value;
+            const descrizione = rotolo.descrizione || fornitore + ' ' + (rotolo.spessore || '0') + ' ZINCATO';
+            const colore = rotolo.colore || 'RAL 9002';
+            const spessore = rotolo.spessore || '0';
+            const larghezza = rotolo.larghezza || '0';
+            const peso = rotolo.peso || '0';
+            const barcode = rotolo.codiceBarre || 'N/A';
+            
+            doc.setFontSize(28);
+            doc.setFont('helvetica', 'bold');
+            doc.text(descrizione, 140, 25, { align: 'right' });
+            
+            doc.setFontSize(24);
+            doc.setFont('helvetica', 'normal');
+            doc.text(colore, 140, 40, { align: 'right' });
+            
+            doc.setFontSize(48);
+            doc.setFont('helvetica', 'bold');
+            doc.text(barcode, 75, 90, { align: 'center' });
+            
+            doc.setFontSize(36);
+            doc.setFont('helvetica', 'normal');
+            doc.text(`${parseFloat(spessore).toFixed(2)} x ${larghezza}`, 75, 130, { align: 'center' });
+            
+            doc.setFontSize(32);
+            doc.setFont('helvetica', 'bold');
+            doc.text(`KG ${peso}`, 75, 170, { align: 'center' });
+            
+            doc.save(`etichetta_${barcode}.pdf`);
+            alert('PDF esportato!');
+        }
+        
+        function esportaTuttiPDF() {
+            if (stato.rotoli.length === 0) {
+                alert('Nessun rotolo da esportare!');
+                return;
+            }
+            
+            const jsPDF = window.jspdf.jsPDF;
+            const dataArrivo = document.getElementById('dataArrivo').value;
+            
+            const doc = new jsPDF({
+                orientation: 'portrait',
+                unit: 'mm',
+                format: [150, 220]
+            });
+            
+            stato.rotoli.forEach((rotolo, index) => {
+                if (index > 0) doc.addPage([150, 220]);
+                
+                const fornitore = document.getElementById('fornitore').value;
+                const descrizione = rotolo.descrizione || fornitore + ' ' + (rotolo.spessore || '0') + ' ZINCATO';
+                const colore = rotolo.colore || 'RAL 9002';
+                const spessore = rotolo.spessore || '0';
+                const larghezza = rotolo.larghezza || '0';
+                const peso = rotolo.peso || '0';
+                const barcode = rotolo.codiceBarre || 'N/A';
+                
+                doc.setFontSize(28);
+                doc.setFont('helvetica', 'bold');
+                doc.text(descrizione, 140, 25, { align: 'right' });
+                
+                doc.setFontSize(24);
+                doc.setFont('helvetica', 'normal');
+                doc.text(colore, 140, 40, { align: 'right' });
+                
+                doc.setFontSize(48);
+                doc.setFont('helvetica', 'bold');
+                doc.text(barcode, 75, 90, { align: 'center' });
+                
+                doc.setFontSize(36);
+                doc.setFont('helvetica', 'normal');
+                doc.text(`${parseFloat(spessore).toFixed(2)} x ${larghezza}`, 75, 130, { align: 'center' });
+                
+                doc.setFontSize(32);
+                doc.setFont('helvetica', 'bold');
+                doc.text(`KG ${peso}`, 75, 170, { align: 'center' });
+            });
+            
+            doc.save(`etichette_${dataArrivo}.pdf`);
+            alert(`Esportate ${stato.rotoli.length} etichette in PDF!`);
         }
 
         async function salvaEtichettaSupabase(rotolo, qrUrl) {

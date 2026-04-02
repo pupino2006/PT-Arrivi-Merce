@@ -1,8 +1,0 @@
-fastapi
-uvicorn
-python-multipart
-google-cloud-vision
-pandas
-openpyxl
-pillow
-supabase
