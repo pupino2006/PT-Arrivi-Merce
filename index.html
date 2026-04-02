@@ -622,15 +622,6 @@
                 </div>
             </div>
             
-            <div style="margin: 15px 0; padding: 10px; background: #e8f4f8; border-radius: 8px;">
-                <label style="display: flex; align-items: center; cursor: pointer;">
-                    <input type="checkbox" id="propagaDati" style="margin-right: 10px; width: 20px; height: 20px;">
-                    <span style="font-weight: bold; color: var(--primary);">
-                        📋 Applica a tutti i rotoli (descrizione, colore)
-                    </span>
-                </label>
-            </div>
-            
             <button class="btn-main btn-secondary" onclick="salvaRotoloCorrente()">
                 💾 Salva e Prossimo
             </button>
@@ -671,11 +662,15 @@
             📥 Esporta in Excel
         </button>
         
+        <button class="btn-main" onclick="stampaZebraTutti()" style="background: var(--secondary); margin-top: 10px;">
+            🖨️ Stampa Tutte le Etichette su Zebra
+        </button>
+        
         <button class="btn-main" onclick="esportaEtichette()" style="background: var(--secondary); margin-top: 10px;">
             🏷️ Esporta Etichette
         </button>
         
-        <button class="btn-main" onclick="nuovoCarico()" style="background: var(--secondary);">
+        <button class="btn-main" onclick="nuovoCarico()" style="background: var(--secondary); margin-top: 10px;">
             🔄 Nuovo Carico
         </button>
     </div>
@@ -1680,6 +1675,89 @@
                 console.error('Errore stampa Zebra:', error);
                 alert(`❌ Errore: Non riesco a contattare la stampante all'indirizzo ${zebraIp}. Verifica che:\n- La stampante sia accesa\n- L'IP sia corretto\n- Il browser supporti CORS`);
             }
+        }
+        
+        // ============================================
+        // STAMPA ZEBRA TUTTI I ROTOLI - STEP 4
+        // ============================================
+        async function stampaZebraTutti() {
+            const zebraIp = '192.168.68.61';
+            const fornitore = document.getElementById('fornitore').value;
+            const spessore = document.getElementById('spessoreComune').value;
+            const larghezza = document.getElementById('larghezzaComune').value;
+            const dataArrivo = document.getElementById('dataArrivo').value;
+            
+            if (!fornitore) {
+                alert('Seleziona prima un fornitore!');
+                return;
+            }
+            
+            if (stato.rotoli.length === 0) {
+                alert('Nessun rotolo da stampare!');
+                return;
+            }
+            
+            mostraLoading(`Stampa di ${stato.rotoli.length} etichette in corso...`);
+            
+            let stampate = 0;
+            let errori = 0;
+            
+            for (let i = 0; i < stato.rotoli.length; i++) {
+                const rotolo = stato.rotoli[i];
+                
+                if (!rotolo.codiceBarre) {
+                    errori++;
+                    continue;
+                }
+                
+                document.getElementById('loading-text').textContent = `Stampa etichetta ${i + 1} di ${stato.rotoli.length}...`;
+                document.getElementById('loading-progress').textContent = Math.round(((i + 1) / stato.rotoli.length) * 100) + '%';
+                document.getElementById('progress-fill').style.width = (((i + 1) / stato.rotoli.length) * 100) + '%';
+                
+                try {
+                    const descrizione = rotolo.descrizione || '';
+                    const colore = rotolo.colore || '';
+                    const peso = rotolo.peso || '0';
+                    const codiceBarre = rotolo.codiceBarre;
+                    
+                    const zplCommand = `
+^XA
+^MMT
+^PW812
+^LL609
+^LS0
+^FT50,70^A0N,50,50^FD${descrizione}^FS
+^FT50,120^A0N,30,30^FD${colore}^FS
+^FT50,170^A0N,80,80^FD${codiceBarre}^FS
+^FT50,280^A0N,40,40^FD${spessore || '-'} x ${larghezza || '-'}mm^FS
+^FT50,330^A0N,40,40^FDKG ${peso}^FS
+^FT350,330^A0N,30,30^FD${dataArrivo || ''}^FS
+^FT400,70^BQN,2,8^FDQA${codiceBarre}^FS
+^XZ
+                    `;
+                    
+                    const response = await fetch(`http://${zebraIp}/pstprnt`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'text/plain' },
+                        body: zplCommand
+                    });
+                    
+                    if (response.ok) {
+                        stampate++;
+                    } else {
+                        errori++;
+                    }
+                } catch (error) {
+                    errori++;
+                    console.error(`Errore stampa rotolo ${i + 1}:`, error);
+                }
+                
+                // Piccola pausa tra le stampe
+                await new Promise(resolve => setTimeout(resolve, 200));
+            }
+            
+            nascondiLoading();
+            alert(`✅ Stampa completata!\nStampate: ${stampate}/${stato.rotoli.length}\nErrori: ${errori}`);
         }
         
         // ============================================
