@@ -610,15 +610,8 @@
                            style="margin-top:5px; padding:8px; border:1px solid #ddd; border-radius:5px; width:100%;">
                 </div>
                 <div class="input-group">
-                    <label>📏 Spessore (mm):</label>
+                    <label>� Spessore (mm):</label>
                     <input type="number" step="0.01" id="spessore" placeholder="Spessore...">
-                </div>
-            </div>
-            
-            <div class="two-cols">
-                <div class="input-group">
-                    <label>↔️ Larghezza (mm):</label>
-                    <input type="number" id="larghezza" placeholder="Larghezza...">
                 </div>
             </div>
             
@@ -1337,10 +1330,6 @@
             document.getElementById('rotoloStatus').textContent = rotolo.compilato ? '✓ Compilato' : '⚠️ Da compilare';
             document.getElementById('rotoloStatus').style.color = rotolo.compilato ? 'var(--success)' : 'var(--warning)';
             
-            // Popola campi
-            document.getElementById('codiceBarre').value = rotolo.codiceBarre || '';
-            document.getElementById('peso').value = rotolo.peso || '';
-            
             // Pre-compila con i dati comuni se vuoti nel rotolo
             const spessoreComune = document.getElementById('spessoreComune').value || '';
             const larghezzaComune = document.getElementById('larghezzaComune').value || '';
@@ -1352,6 +1341,12 @@
             if (!rotolo.larghezza && larghezzaComune) rotolo.larghezza = parseInt(larghezzaComune);
             if (!rotolo.descrizione && descComune) rotolo.descrizione = descComune;
             if (!rotolo.colore && colComune) rotolo.colore = colComune;
+            
+            // **POPOLA I CAMPI HTML** dal rotolo object
+            document.getElementById('codiceBarre').value = rotolo.codiceBarre || '';
+            document.getElementById('peso').value = rotolo.peso || '';
+            document.getElementById('spessore').value = rotolo.spessore || spessoreComune || '';
+            document.getElementById('larghezza').value = rotolo.larghezza || larghezzaComune || '';
             
             // Popola descrizioni (standard + custom)
             const fornitore = document.getElementById('fornitore').value;
@@ -1377,8 +1372,28 @@
                 descSelect.appendChild(opt);
             }
             
-            // Popola colori
-            aggiornaColore();
+            // Popola colori e seleziona quello del rotolo
+            const colSelect = document.getElementById('codiceColore');
+            const tuttiColori = getTuttiColori(fornitore);
+            
+            colSelect.innerHTML = '<option value="">Seleziona colore...</option>';
+            
+            tuttiColori.forEach(c => {
+                const opt = document.createElement('option');
+                opt.value = c;
+                opt.textContent = c;
+                if (rotolo.colore === c) opt.selected = true;
+                colSelect.appendChild(opt);
+            });
+            
+            // Se il colore corrente non è nella lista, mostralo come option
+            if (rotolo.colore && !tuttiColori.includes(rotolo.colore)) {
+                const opt = document.createElement('option');
+                opt.value = rotolo.colore;
+                opt.textContent = rotolo.colore + ' (custom)';
+                opt.selected = true;
+                colSelect.appendChild(opt);
+            }
         }
         
         function aggiornaColore() {
@@ -1853,9 +1868,12 @@
             stato.rotoli[idx].codiceBarre = document.getElementById('codiceBarre').value;
             stato.rotoli[idx].peso = parseInt(document.getElementById('peso').value) || 0;
             
-            // Usa i dati comuni per spessore e larghezza
-            stato.rotoli[idx].spessore = parseFloat(document.getElementById('spessoreComune').value) || 0;
-            stato.rotoli[idx].larghezza = parseInt(document.getElementById('larghezzaComune').value) || 0;
+            // Salva spessore e larghezza dal campo del rotolo (può essere modificato per questo rotolo)
+            const spessoreValue = document.getElementById('spessore').value;
+            const larghezzaValue = document.getElementById('larghezza').value;
+            
+            stato.rotoli[idx].spessore = spessoreValue ? parseFloat(spessoreValue) : (parseFloat(document.getElementById('spessoreComune').value) || 0);
+            stato.rotoli[idx].larghezza = larghezzaValue ? parseInt(larghezzaValue) : (parseInt(document.getElementById('larghezzaComune').value) || 0);
             
             // Gestisci descrizione (da select o custom)
             let descrizione = document.getElementById('descrizione').value;
