@@ -23,6 +23,9 @@
     <!-- jsPDF per esportazione PDF -->
     <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
     
+    <!-- HTML5 QR Code Scanner -->
+    <script src="https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+    
     <style>
         :root { 
             --primary: #004a99; 
@@ -379,6 +382,7 @@
         <button class="tab-btn" id="tab-btn-2" onclick="vaiAlStep(2)" disabled>2</button>
         <button class="tab-btn" id="tab-btn-3" onclick="vaiAlStep(3)" disabled>3</button>
         <button class="tab-btn" id="tab-btn-4" onclick="vaiAlStep(4)" disabled>4</button>
+        <button class="tab-btn" id="tab-btn-5" onclick="vaiAlStep(5)">📁</button>
     </nav>
 
     <!-- STEP INDICATOR -->
@@ -388,6 +392,7 @@
             <div class="step-dot" id="step-2">2</div>
             <div class="step-dot" id="step-3">3</div>
             <div class="step-dot" id="step-4">4</div>
+            <div class="step-dot" id="step-5" style="font-size:1.2rem;">📁</div>
         </div>
     </div>
 
@@ -581,7 +586,7 @@
                 </button>
             </div>
             
-            <div class="two-cols"><div class="input-group"><label>Peso (KG):</label><input type="number" id="peso" placeholder="Peso..."></div><div class="input-group"><label>Larghezza (mm):</label><select id="larghezza"><option value="">Seleziona...</option></select></div></div>
+            <div class="two-cols"><div class="input-group"><label>Peso (KG):</label><input type="number" id="peso" placeholder="Peso..."></div></div>
             
             <div class="input-group">
                 <label>Descrizione:</label>
@@ -601,7 +606,7 @@
                     <input type="text" id="coloreCustom" placeholder="Oppure inserisci nuovo colore..." 
                            style="margin-top:5px; padding:8px; border:1px solid #ddd; border-radius:5px; width:100%;">
                 </div>
-                <div class="input-group"><label>Spessore (mm):</label><select id="spessore"><option value="">Seleziona...</option></select></div></div>
+                </div>
             <button class="btn-main btn-secondary" onclick="salvaRotoloCorrente()">
                 Salva e Prossimo
             </button>
@@ -657,6 +662,22 @@
         <button class="btn-main" onclick="nuovoCarico()" style="background: var(--secondary); margin-top: 10px;">
             🔄 Nuovo Carico
         </button>
+    </div>
+
+    <!-- ============================================== -->
+    <!-- STEP 5: ARCHIVIO ESPORTAZIONI -->
+    <!-- ============================================== -->
+    <div id="step-5-content" class="tab-content container" style="display: none;">
+        <div class="section-title">📁 Archivio Esportazioni</div>
+        
+        <div id="archivioLoading" style="text-align: center; padding: 20px;">
+            <p>Caricamento...</p>
+        </div>
+        
+        <div id="archivioLista" class="card" style="display: none;">
+            <p style="color: var(--secondary);">Seleziona un'esportazione per scaricare le etichette PDF.</p>
+            <div id="archivioItems"></div>
+        </div>
     </div>
 
     <script>
@@ -907,6 +928,16 @@
         // NAVIGAZIONE STEP
         // ============================================
         function vaiAlStep(step) {
+            if (step === 5) {
+                // Step 5 - Archivio (accesso diretto)
+                document.querySelectorAll('.tab-content').forEach(el => el.style.display = 'none');
+                document.getElementById('step-5-content').style.display = 'block';
+                document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+                document.getElementById('tab-btn-5').classList.add('active');
+                caricaArchivio();
+                return;
+            }
+            
             if (step < stato.step) {
                 // Puoi tornare indietro
                 stato.step = step;
@@ -2388,6 +2419,99 @@
             
             doc.save(`etichette_${dataArrivo}.pdf`);
             alert(`Esportate ${stato.rotoli.length} etichette in PDF!`);
+            
+            // Salva nel DB l'esportazione
+            await salvaEsportazioneSupabase();
+        }
+
+        async function salvaEsportazioneSupabase() {
+            const dataArrivo = document.getElementById('dataArrivo').value;
+            const fornitore = document.getElementById('fornitore').value;
+            const spessore = document.getElementById('spessore').value;
+            const larghezza = document.getElementById('larghezza').value;
+            const totaleRotoli = stato.rotoli.length;
+            const totalePeso = stato.rotoli.reduce((sum, r) => sum + (parseFloat(r.peso) || 0), 0);
+            const pdfUrl = `etichette_${dataArrivo}.pdf`;
+            
+            const record = {
+                data_arrivo: dataArrivo,
+                fornitore: fornitore,
+                spessore: spessore,
+                larghezza: larghezza,
+                totale_rotoli: totaleRotoli,
+                totale_peso: totalePeso,
+                pdf_url: pdfUrl,
+                created_at: new Date().toISOString()
+            };
+
+            try {
+                const res = await fetch(`${SB_URL}/rest/v1/etichette`, {
+                    method: 'POST',
+                    headers: {
+                        apikey: SB_KEY,
+                        Authorization: `Bearer ${SB_KEY}`,
+                        'Content-Type': 'application/json',
+                        Prefer: 'return=representation'
+                    },
+                    body: JSON.stringify(record)
+                });
+                
+                if (res.ok) {
+                    console.log('Esportazione salvata in Supabase');
+                } else {
+                    console.warn('Errore salvataggio:', await res.text());
+                }
+            } catch (error) {
+                console.error('Errore salvataggio esportazione:', error);
+            }
+        }
+
+        async function caricaArchivio() {
+            const loading = document.getElementById('archivioLoading');
+            const lista = document.getElementById('archivioLista');
+            const items = document.getElementById('archivioItems');
+            
+            loading.style.display = 'block';
+            lista.style.display = 'none';
+            
+            try {
+                const res = await fetch(`${SB_URL}/rest/v1/etichette?order=created_at.desc&limit=50`, {
+                    headers: {
+                        apikey: SB_KEY,
+                        Authorization: `Bearer ${SB_KEY}`
+                    }
+                });
+                
+                if (!res.ok) throw new Error('Errore caricamento');
+                
+                const data = await res.json();
+                
+                loading.style.display = 'none';
+                lista.style.display = 'block';
+                
+                if (data.length === 0) {
+                    items.innerHTML = '<p style="color: var(--secondary);">Nessuna esportazione trovata.</p>';
+                    return;
+                }
+                
+                items.innerHTML = data.map(item => `
+                    <div style="padding: 15px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center;">
+                        <div>
+                            <strong>${item.data_arrivo}</strong> - ${item.fornitore}<br>
+                            <small style="color: var(--secondary);">
+                                ${item.totale_rotoli} rotoli | ${item.totale_peso} KG | ${item.spessore}x${item.larghezza}
+                            </small>
+                        </div>
+                        <button onclick="alert('PDF: ${item.pdf_url}')" class="btn-main" style="padding: 8px 15px; font-size: 0.8rem;">
+                            📄 Scarica PDF
+                        </button>
+                    </div>
+                `).join('');
+                
+            } catch (error) {
+                loading.innerHTML = '<p style="color: red;">Errore caricamento archivio.</p>';
+                console.error(error);
+            }
         }
 
         async function salvaEtichettaSupabase(rotolo, qrUrl) {
