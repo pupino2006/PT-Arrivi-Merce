@@ -705,10 +705,42 @@
         // ============================================
         // INIT - Mostra home page
         // ============================================
-        window.onload = function() {
+        function initHome() {
+            console.log('Init home page');
             document.getElementById('home-page').style.display = 'block';
             document.getElementById('wizard-container').style.display = 'none';
             document.getElementById('home-archivio').style.display = 'none';
+        }
+
+        function vaiACreaArrivo() {
+            console.log('vaiACreaArrivo clicked');
+            document.getElementById('home-page').style.display = 'none';
+            document.getElementById('wizard-container').style.display = 'block';
+            document.getElementById('home-archivio').style.display = 'none';
+            // Reset stato per nuovo arrivo
+            stato.step = 1;
+            stato.foto = [];
+            stato.rotoli = [];
+            aggiornaUI();
+        }
+
+        function vaiAArchivio() {
+            console.log('vaiAArchivio clicked');
+            document.getElementById('home-page').style.display = 'none';
+            document.getElementById('wizard-container').style.display = 'none';
+            document.getElementById('home-archivio').style.display = 'block';
+            caricaArchivioHome();
+        }
+
+        function tornaHome() {
+            console.log('tornaHome clicked');
+            document.getElementById('home-page').style.display = 'block';
+            document.getElementById('wizard-container').style.display = 'none';
+            document.getElementById('home-archivio').style.display = 'none';
+        }
+
+        window.onload = function() {
+            initHome();
         };
 
         // ============================================
@@ -969,33 +1001,6 @@
                     aggiornaUI();
                 }
             }
-        }
-
-        // ============================================
-        // HOME PAGE NAVIGATION
-        // ============================================
-        function vaiACreaArrivo() {
-            document.getElementById('home-page').style.display = 'none';
-            document.getElementById('wizard-container').style.display = 'block';
-            document.getElementById('home-archivio').style.display = 'none';
-            // Reset stato per nuovo arrivo
-            stato.step = 1;
-            stato.foto = [];
-            stato.rotoli = [];
-            aggiornaUI();
-        }
-
-        function vaiAArchivio() {
-            document.getElementById('home-page').style.display = 'none';
-            document.getElementById('wizard-container').style.display = 'none';
-            document.getElementById('home-archivio').style.display = 'block';
-            caricaArchivioHome();
-        }
-
-        function tornaHome() {
-            document.getElementById('home-page').style.display = 'block';
-            document.getElementById('wizard-container').style.display = 'none';
-            document.getElementById('home-archivio').style.display = 'none';
         }
 
         async function caricaArchivioHome() {
