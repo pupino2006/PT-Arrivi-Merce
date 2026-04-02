@@ -475,13 +475,33 @@
                 </div>
             </div>
             
+            <div class="two-cols">
+                <div class="input-group">
+                    <label>🏷️ Descrizione:</label>
+                    <select id="descrizioneComune">
+                        <option value="">Seleziona...</option>
+                    </select>
+                </div>
+                <div class="input-group">
+                    <label>🎨 Codice Colore:</label>
+                    <select id="codiceColoreComune">
+                        <option value="">Seleziona...</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div class="input-group">
+                <label>📦 Numero Rotoli da Caricare:</label>
+                <input type="number" id="numRotoliInserire" min="1" max="100" placeholder="Es. 5" value="1">
+            </div>
+            
             <div class="input-group">
                 <label>📝 Note:</label>
                 <textarea id="note" rows="2" placeholder="Note aggiuntive..."></textarea>
             </div>
             
             <div style="margin-top: 20px;">
-                <p style="font-weight: bold; color: var(--primary);">📦 Numero rotoli trovati: <span id="numRotoli">0</span></p>
+                <p style="font-weight: bold; color: var(--primary);">📦 Numero rotoli da creare: <span id="numRotoli">1</span></p>
             </div>
             
             <button class="btn-main btn-success" onclick="vaiAlStep(3)">
@@ -542,8 +562,11 @@
             </div>
             
             <div style="margin: 15px 0;">
-                <button onclick="generaEtichetta()" class="btn-main btn-success" style="width: 100%;">
-                    🏷️ Genera Etichetta
+                <button onclick="generaEtichetta()" class="btn-main btn-success" style="width: 100%; margin-bottom: 10px;">
+                    🏷️ Genera Etichetta (Anteprima)
+                </button>
+                <button onclick="stampaZebra()" class="btn-main" style="width: 100%; background: var(--secondary);">
+                    🖨️ Stampa su Zebra ZT230
                 </button>
             </div>
             
@@ -879,6 +902,14 @@
         // Inizializza
         document.getElementById('dataArrivo').valueAsDate = new Date();
         
+        // Aggiungi listener per numero rotoli
+        const numRotoliInput = document.getElementById('numRotoliInserire');
+        if (numRotoliInput) {
+            numRotoliInput.addEventListener('change', (e) => {
+                document.getElementById('numRotoli').textContent = e.target.value || 1;
+            });
+        }
+        
         // ============================================
         // NAVIGAZIONE STEP
         // ============================================
@@ -942,7 +973,12 @@
             
             // Step specifico
             if (stato.step === 2) {
-                document.getElementById('numRotoli').textContent = stato.foto.length;
+                // Se viene da OCR, mostra il numero di foto; se da inserimento manuale, mostra il numero di rotoli
+                if (stato.foto.length > 0) {
+                    document.getElementById('numRotoli').textContent = stato.foto.length;
+                } else if (stato.rotoli.length > 0) {
+                    document.getElementById('numRotoli').textContent = stato.rotoli.length;
+                }
             }
             if (stato.step === 3) {
                 popolaSelectRotoli();
@@ -1202,25 +1238,29 @@
         // INSERIMENTO MANUALE SENZA FOTO
         // ============================================
         function inserisciManualmente() {
-            // Crea un rotolo vuoto
-            stato.rotoli.push({
-                codiceBarre: '',
-                peso: 0,
-                mq: 0,
-                fornitore: '',
-                spessore: 0,
-                larghezza: 0,
-                lunghezza: 0,
-                colore: '',
-                descrizione: '',
-                nomeFoto: 'Inserimento manuale',
-                compilato: false
-            });
+            const numRotoli = parseInt(document.getElementById('numRotoliInserire').value) || 1;
             
-            console.log("📝 Rotolo vuoto creato per inserimento manuale");
+            // Crea N rotoli vuoti
+            for (let i = 0; i < numRotoli; i++) {
+                stato.rotoli.push({
+                    codiceBarre: '',
+                    peso: 0,
+                    fornitore: '',
+                    spessore: 0,
+                    larghezza: 0,
+                    lunghezza: 0,
+                    colore: '',
+                    descrizione: '',
+                    nomeFoto: `Inserimento manuale ${i + 1}`,
+                    compilato: false
+                });
+            }
+            
+            console.log(`📝 ${numRotoli} rotoli vuoti creati per inserimento manuale`);
             
             // Va direttamente allo step 2
             stato.step = 2;
+            document.getElementById('numRotoli').textContent = numRotoli;
             aggiornaUI();
         }
         
@@ -1231,20 +1271,33 @@
             const fornitore = document.getElementById('fornitore').value;
             stato.fornitore = fornitore;
             
-            // Aggiorna select descrizioni per il rotolo corrente
-            const descSelect = document.getElementById('descrizione');
+            // Aggiorna select descrizioni comuni
+            const descComuneSelect = document.getElementById('descrizioneComune');
             const tutteDesc = getTutteDescrizioni(fornitore);
             
-            descSelect.innerHTML = '<option value="">Seleziona descrizione...</option>';
+            descComuneSelect.innerHTML = '<option value="">Seleziona...</option>';
             
             tutteDesc.forEach(d => {
                 const opt = document.createElement('option');
                 opt.value = d;
                 opt.textContent = d;
-                descSelect.appendChild(opt);
+                descComuneSelect.appendChild(opt);
             });
             
-            // Aggiorna anche i colori
+            // Aggiorna select colori comuni
+            const colComuneSelect = document.getElementById('codiceColoreComune');
+            const tuttiColori = getTuttiColori(fornitore);
+            
+            colComuneSelect.innerHTML = '<option value="">Seleziona...</option>';
+            
+            tuttiColori.forEach(c => {
+                const opt = document.createElement('option');
+                opt.value = c;
+                opt.textContent = c;
+                colComuneSelect.appendChild(opt);
+            });
+            
+            // Aggiorna anche i colori per il rotolo corrente
             aggiornaColore();
             
             // Aggiorna larghezza e spessore
@@ -1292,8 +1345,18 @@
             // Popola campi
             document.getElementById('codiceBarre').value = rotolo.codiceBarre || '';
             document.getElementById('peso').value = rotolo.peso || '';
-            document.getElementById('spessore').value = rotolo.spessore || '';
-            document.getElementById('larghezza').value = rotolo.larghezza || '';
+            
+            // Pre-compila con i dati comuni se vuoti nel rotolo
+            const spessoreComune = document.getElementById('spessoreComune').value || '';
+            const larghezzaComune = document.getElementById('larghezzaComune').value || '';
+            const descComune = document.getElementById('descrizioneComune').value || '';
+            const colComune = document.getElementById('codiceColoreComune').value || '';
+            
+            // Se il rotolo non ha questi valori, usa quelli comuni
+            if (!rotolo.spessore && spessoreComune) rotolo.spessore = parseFloat(spessoreComune);
+            if (!rotolo.larghezza && larghezzaComune) rotolo.larghezza = parseInt(larghezzaComune);
+            if (!rotolo.descrizione && descComune) rotolo.descrizione = descComune;
+            if (!rotolo.colore && colComune) rotolo.colore = colComune;
             
             // Popola descrizioni (standard + custom)
             const fornitore = document.getElementById('fornitore').value;
@@ -1427,17 +1490,21 @@
         // ============================================
         function generaEtichetta() {
             const fornitore = document.getElementById('fornitore').value;
-            const descrizione = document.getElementById('descrizione').value;
-            const colore = document.getElementById('codiceColore').value;
-            const spessore = document.getElementById('spessore').value;
-            const larghezza = document.getElementById('larghezza').value;
+            const descrizione = document.getElementById('descrizione').value || document.getElementById('descrizioneComune').value;
+            const colore = document.getElementById('codiceColore').value || document.getElementById('codiceColoreComune').value;
+            const spessore = document.getElementById('spessoreComune').value;
+            const larghezza = document.getElementById('larghezzaComune').value;
             const codiceBarre = document.getElementById('codiceBarre').value;
             const peso = document.getElementById('peso').value;
-            const mq = document.getElementById('mq').value;
             const dataArrivo = document.getElementById('dataArrivo').value;
             
             if (!fornitore) {
                 alert('Seleziona prima un fornitore!');
+                return;
+            }
+            
+            if (!codiceBarre) {
+                alert('Inserisci il codice a barre!');
                 return;
             }
             
@@ -1451,13 +1518,15 @@
                     box-sizing: border-box;
                     background: white;
                     border: 1px solid #000;
+                    display: flex;
+                    flex-direction: column;
                 ">
-                    <div style="text-align: center; border-bottom: 2px solid #000; padding-bottom: 3mm; margin-bottom: 3mm;">
+                    <div style="text-align: center; border-bottom: 2px solid #000; padding-bottom: 3mm; margin-bottom: 3mm; flex-shrink: 0;">
                         <h2 style="margin: 0; font-size: 14pt;">ETICHETTA ROTOLIO</h2>
                         <p style="margin: 2mm 0 0 0; font-size: 10pt;">PT - Arrivi Merce</p>
                     </div>
                     
-                    <div style="margin-bottom: 3mm;">
+                    <div style="margin-bottom: 3mm; flex-grow: 1;">
                         <div style="display: flex; justify-content: space-between; margin-bottom: 2mm; font-size: 10pt;">
                             <span style="font-weight: bold;">Fornitore:</span>
                             <span>${fornitore}</span>
@@ -1482,55 +1551,56 @@
                             <span style="font-weight: bold;">Peso:</span>
                             <span>${peso || '-'} KG</span>
                         </div>
-                        <div style="display: flex; justify-content: space-between; margin-bottom: 2mm; font-size: 10pt;">
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 2mm; font-size: 9pt;">
                             <span style="font-weight: bold;">Data Arrivo:</span>
                             <span>${dataArrivo || '-'}</span>
                         </div>
                     </div>
                     
-                    <div style="text-align: center; margin-top: 3mm; padding-top: 3mm; border-top: 1px solid #000;">
-                        <div id="qrCodeContainer" style="display: inline-block; padding: 2mm; background: white; border: 1px solid #000;">
-                            <canvas id="qrCodeCanvas"></canvas>
+                    <div style="text-align: center; margin-top: auto; padding-top: 3mm; border-top: 1px solid #000; flex-shrink: 0;">
+                        <div id="qrCodeContainer" style="display: inline-block; padding: 2mm; background: white; border: 1px solid #000; margin-bottom: 2mm;">
+                            <canvas id="qrCodeCanvas" style="width: 80px; height: 80px;"></canvas>
                         </div>
-                        <p style="margin: 2mm 0 0 0; font-size: 9pt;">${codiceBarre || 'Codice lotto non inserito'}</p>
+                        <p style="margin: 2mm 0 0 0; font-size: 9pt; font-weight: bold;">${codiceBarre}</p>
                     </div>
                 </div>
             `;
             
             // Apri anteprima in nuova scheda
             const printWindow = window.open('', '_blank');
-            printWindow.document.write('<html><head><title>Anteprima Etichetta</title></head><body>');
+            printWindow.document.write('<html><head><title>Anteprima Etichetta</title><style>body {margin:0; padding:10px;} </style></head><body>');
             printWindow.document.write(etichettaHTML);
             printWindow.document.write('</body></html>');
             printWindow.document.close();
             
-            // Genera QR Code nella nuova scheda
-            const qrData = JSON.stringify({
-                fornitore: fornitore,
-                descrizione: descrizione,
-                colore: colore,
-                spessore: spessore,
-                larghezza: larghezza,
-                codiceBarre: codiceBarre || '',
-                peso: peso,
-                dataArrivo: dataArrivo
-            });
-            
-            QRCode.toCanvas(
-                printWindow.document.getElementById('qrCodeCanvas'),
-                qrData,
-                {
-                    width: 120,
-                    margin: 1,
-                    color: {
-                        dark: '#000000',
-                        light: '#ffffff'
-                    }
-                },
-                function(error) {
-                    if (error) console.error('Errore generazione QR:', error);
+            // Genera QR Code nella nuova scheda SOLO con il codice a barre
+            setTimeout(() => {
+                try {
+                    const qrData = codiceBarre; // Contiene SOLO il codice a barre
+                    
+                    QRCode.toCanvas(
+                        printWindow.document.getElementById('qrCodeCanvas'),
+                        qrData,
+                        {
+                            width: 80,
+                            margin: 0,
+                            color: {
+                                dark: '#000000',
+                                light: '#ffffff'
+                            }
+                        },
+                        function(error) {
+                            if (error) {
+                                console.error('Errore QR Code:', error);
+                            } else {
+                                console.log('✅ QR Code generato:', qrData);
+                            }
+                        }
+                    );
+                } catch (e) {
+                    console.error('Errore generazione QR:', e);
                 }
-            );
+            }, 500);
         }
         
         function stampaEtichetta() {
@@ -1545,6 +1615,71 @@
         
         function chiudiEtichetta() {
             document.getElementById('etichettaContainer').style.display = 'none';
+        }
+        
+        // ============================================
+        // STAMPA ZEBRA ZT230
+        // ============================================
+        async function stampaZebra() {
+            const zebraIp = '192.168.68.61'; // Indirizzo IP della stampante Zebra
+            
+            const fornitore = document.getElementById('fornitore').value;
+            const descrizione = document.getElementById('descrizione').value || document.getElementById('descrizioneComune').value;
+            const colore = document.getElementById('codiceColore').value || document.getElementById('codiceColoreComune').value;
+            const spessore = document.getElementById('spessoreComune').value;
+            const larghezza = document.getElementById('larghezzaComune').value;
+            const codiceBarre = document.getElementById('codiceBarre').value;
+            const peso = document.getElementById('peso').value;
+            const dataArrivo = document.getElementById('dataArrivo').value;
+            
+            if (!fornitore) {
+                alert('Seleziona prima un fornitore!');
+                return;
+            }
+            
+            if (!codiceBarre) {
+                alert('Inserisci il codice a barre!');
+                return;
+            }
+            
+            try {
+                // Comando ZPL per stampante Zebra ZT230
+                // Formato etichetta: 160mm x 110mm (4x3 inches @ 203dpi = 810x610 dots)
+                const zplCommand = `
+^XA
+^MMT
+^PW812
+^LL609
+^LS0
+^FT50,70^A0N,50,50^FD${descrizione || 'ACCIAIO ZINCATO'}^FS
+^FT50,120^A0N,30,30^FD${colore || 'RAL 9002'}^FS
+^FT50,170^A0N,80,80^FD${codiceBarre}^FS
+^FT50,280^A0N,40,40^FD${spessore || '-'} x ${larghezza || '-'}mm^FS
+^FT50,330^A0N,40,40^FDKG ${peso || '-'}^FS
+^FT350,330^A0N,30,30^FD${dataArrivo || ''}^FS
+^FT400,70^BQN,2,8^FDQA${codiceBarre}^FS
+^XZ
+                `;
+                
+                // Invia il comando ZPL alla stampante tramite HTTP POST
+                const response = await fetch(`http://${zebraIp}/pstprnt`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'text/plain'
+                    },
+                    body: zplCommand
+                });
+                
+                if (response.ok) {
+                    alert('✅ Etichetta inviata alla stampante Zebra ZT230!');
+                    console.log('Etichetta stampata con codice:', codiceBarre);
+                } else {
+                    alert(`⚠️ Errore HTTP ${response.status}. Verifica la connessione alla stampante.`);
+                }
+            } catch (error) {
+                console.error('Errore stampa Zebra:', error);
+                alert(`❌ Errore: Non riesco a contattare la stampante all'indirizzo ${zebraIp}. Verifica che:\n- La stampante sia accesa\n- L'IP sia corretto\n- Il browser supporti CORS`);
+            }
         }
         
         // ============================================
@@ -1639,8 +1774,10 @@
             // Salva dati basic
             stato.rotoli[idx].codiceBarre = document.getElementById('codiceBarre').value;
             stato.rotoli[idx].peso = parseInt(document.getElementById('peso').value) || 0;
-            stato.rotoli[idx].spessore = parseFloat(document.getElementById('spessore').value) || 0;
-            stato.rotoli[idx].larghezza = parseInt(document.getElementById('larghezza').value) || 0;
+            
+            // Usa i dati comuni per spessore e larghezza
+            stato.rotoli[idx].spessore = parseFloat(document.getElementById('spessoreComune').value) || 0;
+            stato.rotoli[idx].larghezza = parseInt(document.getElementById('larghezzaComune').value) || 0;
             
             // Gestisci descrizione (da select o custom)
             let descrizione = document.getElementById('descrizione').value;
@@ -1652,6 +1789,10 @@
                     descrizioniCustom.push(descrizione);
                     console.log("📝 Nuova descrizione custom:", descrizione);
                 }
+            }
+            // Se niente è stato scelto, usa il valore comune
+            if (!descrizione) {
+                descrizione = document.getElementById('descrizioneComune').value;
             }
             stato.rotoli[idx].descrizione = descrizione;
             
@@ -1666,13 +1807,17 @@
                     console.log("🎨 Nuovo colore custom:", colore);
                 }
             }
+            // Se niente è stato scelto, usa il valore comune
+            if (!colore) {
+                colore = document.getElementById('codiceColoreComune').value;
+            }
             stato.rotoli[idx].colore = colore;
             
-            // Propaga descrizione, colore, larghezza e spessore agli altri rotoli se selezionato
+            // Propaga descrizione e colore agli altri rotoli se selezionato
             const propagare = document.getElementById('propagaDati')?.checked;
             if (propagare) {
-                const larghezza = stato.rotoli[idx].larghezza;
                 const spessore = stato.rotoli[idx].spessore;
+                const larghezza = stato.rotoli[idx].larghezza;
                 for (let i = 0; i < stato.rotoli.length; i++) {
                     if (i !== idx) {
                         stato.rotoli[i].descrizione = descrizione;
@@ -1681,7 +1826,7 @@
                         stato.rotoli[i].spessore = spessore;
                     }
                 }
-                console.log("📋 Dati propagati a tutti i rotoli (descrizione, colore, larghezza, spessore)");
+                console.log("📋 Dati propagati a tutti i rotoli (descrizione, colore)");
             }
             
             // Verifica se compilato
