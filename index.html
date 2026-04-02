@@ -381,10 +381,10 @@
         <div class="section-title">PT - Arrivi Merce</div>
         
         <div class="card" style="text-align: center;">
-            <button onclick="vaiACreaArrivo()" class="btn-main btn-success" style="width: 100%; padding: 20px; font-size: 1.2rem; margin-bottom: 15px;">
+            <button id="btn-crea-arrivo" class="btn-main btn-success" style="width: 100%; padding: 20px; font-size: 1.2rem; margin-bottom: 15px;">
                 ➕ Crea Arrivo Merce
             </button>
-            <button onclick="vaiAArchivio()" class="btn-main" style="width: 100%; padding: 20px; font-size: 1.2rem; background: var(--secondary);">
+            <button id="btn-archvio" class="btn-main" style="width: 100%; padding: 20px; font-size: 1.2rem; background: var(--secondary);">
                 📁 Archivio Esportazioni
             </button>
         </div>
@@ -977,6 +977,24 @@
         
         // Inizializza
         document.getElementById('dataArrivo').valueAsDate = new Date();
+        
+        // Event listeners per home page
+        document.getElementById('btn-crea-arrivo').addEventListener('click', function() {
+            document.getElementById('home-page').style.display = 'none';
+            document.getElementById('wizard-container').style.display = 'block';
+            document.getElementById('home-archivio').style.display = 'none';
+            stato.step = 1;
+            stato.foto = [];
+            stato.rotoli = [];
+            aggiornaUI();
+        });
+        
+        document.getElementById('btn-archvio').addEventListener('click', function() {
+            document.getElementById('home-page').style.display = 'none';
+            document.getElementById('wizard-container').style.display = 'none';
+            document.getElementById('home-archivio').style.display = 'block';
+            caricaArchivioHome();
+        });
         
         // Aggiungi listener per numero rotoli
         const numRotoliInput = document.getElementById('numRotoliInserire');
