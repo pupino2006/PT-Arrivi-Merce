@@ -263,7 +263,7 @@ function App() {
 
   // Stampa etichette con Zebra
   const printZebra = async () => {
-    const zebraIp = '192.168.68.61';
+    const zebraIp = '192.168.68.162';
     
     try {
       // Genera comandi ZPL per ogni collo
@@ -299,7 +299,7 @@ function App() {
   };
 
   const printZebraActive = async () => {
-    const zebraIp = '192.168.68.61';
+    const zebraIp = '192.168.68.162';
     const collo = colli[activeCollo];
     if (!collo) {
       alert('Nessun rotolo attivo selezionato per la stampa Zebra.');

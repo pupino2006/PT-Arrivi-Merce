@@ -21,7 +21,7 @@
     <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
     
     <!-- QRCode.js per generare QR Code -->
-    <script src="https://unpkg.com/qrcode@1.5.3/build/qrcode.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
     
     <style>
         :root { 
@@ -1515,6 +1515,38 @@
         // ============================================
         // GENERAZIONE ETICHETTA
         // ============================================
+        function generateQRCodeDataURL(text, options = {}) {
+            return new Promise((resolve, reject) => {
+                if (window.QRCode && typeof QRCode.toDataURL === 'function') {
+                    QRCode.toDataURL(text, options, (err, url) => {
+                        if (err) return reject(err);
+                        resolve(url);
+                    });
+                } else if (window.QRCode) {
+                    // fallback per qrcodejs (in caso la libreria onnome non abbia toDataURL)
+                    const tempDiv = document.createElement('div');
+                    const sz = options.width || 160;
+                    new QRCode(tempDiv, {
+                        text,
+                        width: sz,
+                        height: sz,
+                        colorDark: options.color?.dark || '#000000',
+                        colorLight: options.color?.light || '#ffffff',
+                        correctLevel: QRCode.CorrectLevel ? QRCode.CorrectLevel.H : undefined
+                    });
+                    setTimeout(() => {
+                        const img = tempDiv.querySelector('img');
+                        if (img) return resolve(img.src);
+                        const canvas = tempDiv.querySelector('canvas');
+                        if (canvas) return resolve(canvas.toDataURL('image/png'));
+                        reject(new Error('Impossibile generare QR Code'));
+                    }, 50);
+                } else {
+                    reject(new Error('QRCode non trovato nel browser'));
+                }
+            });
+        }
+
         function generaEtichetta() {
             const fornitore = document.getElementById('fornitore').value;
             const descrizione = document.getElementById('descrizione').value || document.getElementById('descrizioneComune').value;
@@ -1542,36 +1574,25 @@
                 return;
             }
 
-            QRCode.toDataURL(
-                qrData,
-                {
-                    width: 100,
-                    margin: 0,
-                    color: {
-                        dark: '#000000',
-                        light: '#ffffff'
-                    }
-                },
-                function(error, qrUrl) {
-                    if (error) {
-                        console.error('Errore QR Code:', error);
-                        alert('Errore generazione QR Code');
-                        return;
-                    }
-
-                    // Ora che abbiamo il QR, creiamo l'HTML con il QR src già impostato
-                    const etichettaHTML = `
-                        <div style="
-                            font-family: 'Segoe UI', sans-serif;
-                            width: 155mm;
-                            height: 98mm;
-                            padding: 5mm;
-                            box-sizing: border-box;
-                            background: white;
-                            border: 1px solid #000;
-                            display: flex;
-                            flex-direction: column;
-                        ">
+            generateQRCodeDataURL(qrData, {
+                width: 140,
+                margin: 0,
+                color: { dark: '#000000', light: '#ffffff' }
+            })
+            .then((qrUrl) => {
+                // Ora che abbiamo il QR, creiamo l'HTML con il QR src già impostato
+                const etichettaHTML = `
+                    <div style="
+                        font-family: 'Segoe UI', sans-serif;
+                        width: 160mm;
+                        height: 230mm;
+                        padding: 5mm;
+                        box-sizing: border-box;
+                        background: white;
+                        border: 1px solid #000;
+                        display: flex;
+                        flex-direction: column;
+                    ">
                             <div style="display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #000; padding-bottom: 3mm; margin-bottom: 3mm; flex-shrink: 0;">
                                 <img src="ptsimbolo.png" style="width: 25mm; height: auto; margin-right: 3mm;">
                                 <h2 style="margin: 0; font-size: 20pt; letter-spacing: 1px; flex-grow: 1;">ETICHETTA ROTOLO</h2>
@@ -1623,8 +1644,11 @@
                     
                     console.log('✔ Etichetta generata con QR visibile');
                     salvaEtichettaSupabase({fornitore, descrizione, colore, spessore, larghezza, peso, codiceBarre}, qrUrl);
-                }
-            );
+                })
+                .catch((error) => {
+                    console.error('Errore nella generazione dell\'etichetta:', error);
+                    alert('Errore generazione QR Code/Etichetta: ' + (error?.message || error));
+                });
         }
 
         
@@ -1646,7 +1670,7 @@
         // STAMPA ZEBRA ZT230
         // ============================================
         async function stampaZebra() {
-            const zebraIp = '192.168.68.61'; // Indirizzo IP della stampante Zebra
+            const zebraIp = '192.168.68.162'; // Indirizzo IP della stampante Zebra
             
             const fornitore = document.getElementById('fornitore').value;
             const descrizione = document.getElementById('descrizione').value || document.getElementById('descrizioneComune').value;
@@ -1711,7 +1735,7 @@
         // STAMPA ZEBRA TUTTI I ROTOLI - STEP 4
         // ============================================
         async function stampaZebraTutti() {
-            const zebraIp = '192.168.68.61';
+            const zebraIp = '192.168.68.162';
             const fornitore = document.getElementById('fornitore').value;
             const spessore = document.getElementById('spessoreComune').value;
             const larghezza = document.getElementById('larghezzaComune').value;
@@ -2060,27 +2084,21 @@
                         return;
                     }
 
-                    QRCode.toDataURL(
-                        qrData,
-                        {
-                            width: 100,
-                            margin: 1,
-                            color: {
-                                dark: '#000000',
-                                light: '#ffffff'
-                            }
-                        },
-                        function(error, url) {
-                            if (error) {
-                                console.error('Errore generazione QR:', error);
-                                resolve({ rotolo, qrUrl: null });
-                            } else {
-                                console.log(`✔ QR Code generato per rotolo ${rotolo.codiceBarre}`);
-                                salvaEtichettaSupabase(rotolo, url);
-                                resolve({ rotolo, qrUrl: url });
-                            }
+                    generateQRCodeDataURL(qrData, {
+                        width: 100,
+                        margin: 1,
+                        color: {
+                            dark: '#000000',
+                            light: '#ffffff'
                         }
-                    );
+                    }).then((url) => {
+                        console.log(`✔ QR Code generato per rotolo ${rotolo.codiceBarre}`);
+                        salvaEtichettaSupabase(rotolo, url);
+                        resolve({ rotolo, qrUrl: url });
+                    }).catch((error) => {
+                        console.error('Errore generazione QR:', error);
+                        resolve({ rotolo, qrUrl: null });
+                    });
                 });
             });
 
@@ -2092,7 +2110,7 @@
                         <title>Etichette Rotoli - ${dataArrivo}</title>
                         <style>
                             @page {
-                                size: 155mm 98mm;
+                                size: 160mm 230mm;
                                 margin: 0;
                             }
                             body {
@@ -2101,8 +2119,8 @@
                                 padding: 0;
                             }
                             .etichetta {
-                                width: 155mm;
-                                height: 98mm;
+                                width: 160mm;
+                                height: 230mm;
                                 padding: 5mm;
                                 box-sizing: border-box;
                                 background: white;
