@@ -8,7 +8,7 @@
     <!-- PWA -->
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#004a99">
-    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
     <link rel="apple-touch-icon" href="ptsimbolo.png">
     
     <!-- Tesseract.js per OCR -->
@@ -17,10 +17,7 @@
     <!-- SheetJS per Excel -->
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     
-    <!-- Html5-QRCode per scansione QR/Barcode -->
-    <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
-    
-    <!-- QRCode.js per generare QR Code -->
+    <!-- QRCode per generare QR Code (toDataURL, toCanvas) -->
     <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
     
     <style>
@@ -1515,35 +1512,35 @@
         // ============================================
         // GENERAZIONE ETICHETTA
         // ============================================
-        function generateQRCodeDataURL(text, options = {}) {
+        function loadQRCodeLibrary() {
             return new Promise((resolve, reject) => {
-                if (window.QRCode && typeof QRCode.toDataURL === 'function') {
-                    QRCode.toDataURL(text, options, (err, url) => {
-                        if (err) return reject(err);
-                        resolve(url);
-                    });
-                } else if (window.QRCode) {
-                    // fallback per qrcodejs (in caso la libreria onnome non abbia toDataURL)
-                    const tempDiv = document.createElement('div');
-                    const sz = options.width || 160;
-                    new QRCode(tempDiv, {
-                        text,
-                        width: sz,
-                        height: sz,
-                        colorDark: options.color?.dark || '#000000',
-                        colorLight: options.color?.light || '#ffffff',
-                        correctLevel: QRCode.CorrectLevel ? QRCode.CorrectLevel.H : undefined
-                    });
-                    setTimeout(() => {
-                        const img = tempDiv.querySelector('img');
-                        if (img) return resolve(img.src);
-                        const canvas = tempDiv.querySelector('canvas');
-                        if (canvas) return resolve(canvas.toDataURL('image/png'));
-                        reject(new Error('Impossibile generare QR Code'));
-                    }, 50);
-                } else {
-                    reject(new Error('QRCode non trovato nel browser'));
+                if (window.QRCode) {
+                    return resolve();
                 }
+                const script = document.createElement('script');
+                script.src = 'https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js';
+                script.onload = () => resolve();
+                script.onerror = () => reject(new Error('Impossibile caricare la libreria QRCode'));
+                document.head.appendChild(script);
+            });
+        }
+
+        function generateQRCodeDataURL(text, options = {}) {
+            return loadQRCodeLibrary().then(() => {
+                return new Promise((resolve, reject) => {
+                    if (window.QRCode && typeof QRCode.toDataURL === 'function') {
+                        QRCode.toDataURL(text, {
+                            width: options.width || 160,
+                            margin: options.margin !== undefined ? options.margin : 1,
+                            color: options.color || { dark: '#000000', light: '#ffffff' }
+                        }, (err, url) => {
+                            if (err) return reject(err);
+                            resolve(url);
+                        });
+                    } else {
+                        reject(new Error('QRCode library non disponibile - verifica connessione CDN'));
+                    }
+                });
             });
         }
 
@@ -1669,9 +1666,16 @@
         // ============================================
         // STAMPA ZEBRA ZT230
         // ============================================
+        function getZebraUrl() {
+            const zebraIp = '192.168.68.162';
+            const isSecure = window.location.protocol === 'https:';
+            if (isSecure) {
+                return { url: null, error: 'Mixed Content: la pagina e\' su HTTPS ma la stampante usa HTTP. Apri l\'app da http://localhost per stampare.' };
+            }
+            return { url: `http://${zebraIp}/pstprnt`, error: null };
+        }
+
         async function stampaZebra() {
-            const zebraIp = '192.168.68.162'; // Indirizzo IP della stampante Zebra
-            
             const fornitore = document.getElementById('fornitore').value;
             const descrizione = document.getElementById('descrizione').value || document.getElementById('descrizioneComune').value;
             const colore = document.getElementById('codiceColore').value || document.getElementById('codiceColoreComune').value;
@@ -1690,12 +1694,15 @@
                 alert('Inserisci il codice a barre!');
                 return;
             }
+
+            const zebra = getZebraUrl();
+            if (zebra.error) {
+                alert(zebra.error);
+                return;
+            }
             
             try {
-                // Comando ZPL per stampante Zebra ZT230
-                // Formato etichetta: 160mm x 110mm (4x3 inches @ 203dpi = 810x610 dots)
-                const zplCommand = `
-^XA
+                const zplCommand = `^XA
 ^MMT
 ^PW812
 ^LL609
@@ -1707,27 +1714,23 @@
 ^FT50,330^A0N,40,40^FDKG ${peso || '-'}^FS
 ^FT350,330^A0N,30,30^FD${dataArrivo || ''}^FS
 ^FT400,70^BQN,2,8^FDQA${codiceBarre}^FS
-^XZ
-                `;
+^XZ`;
                 
-                // Invia il comando ZPL alla stampante tramite HTTP POST
-                const response = await fetch(`http://${zebraIp}/pstprnt`, {
+                const response = await fetch(zebra.url, {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'text/plain'
-                    },
+                    headers: { 'Content-Type': 'text/plain' },
                     body: zplCommand
                 });
                 
                 if (response.ok) {
-                    alert('âœ… Etichetta inviata alla stampante Zebra ZT230!');
+                    alert('Etichetta inviata alla stampante Zebra ZT230!');
                     console.log('Etichetta stampata con codice:', codiceBarre);
                 } else {
-                    alert(`âš ï¸ Errore HTTP ${response.status}. Verifica la connessione alla stampante.`);
+                    alert(`Errore HTTP ${response.status}. Verifica la connessione alla stampante.`);
                 }
             } catch (error) {
                 console.error('Errore stampa Zebra:', error);
-                alert(`âŒ Errore: Non riesco a contattare la stampante all'indirizzo ${zebraIp}. Verifica che:\n- La stampante sia accesa\n- L'IP sia corretto\n- Il browser supporti CORS`);
+                alert(`Errore: Non riesco a contattare la stampante.\nVerifica che:\n- La stampante sia accesa\n- L\'IP 192.168.68.162 sia raggiungibile\n- L\'app sia aperta da http://localhost (non HTTPS)`);
             }
         }
         
@@ -1735,7 +1738,6 @@
         // STAMPA ZEBRA TUTTI I ROTOLI - STEP 4
         // ============================================
         async function stampaZebraTutti() {
-            const zebraIp = '192.168.68.162';
             const fornitore = document.getElementById('fornitore').value;
             const spessore = document.getElementById('spessoreComune').value;
             const larghezza = document.getElementById('larghezzaComune').value;
@@ -1748,6 +1750,12 @@
             
             if (stato.rotoli.length === 0) {
                 alert('Nessun rotolo da stampare!');
+                return;
+            }
+
+            const zebra = getZebraUrl();
+            if (zebra.error) {
+                alert(zebra.error);
                 return;
             }
             
@@ -1774,8 +1782,7 @@
                     const peso = rotolo.peso || '0';
                     const codiceBarre = rotolo.codiceBarre;
                     
-                    const zplCommand = `
-^XA
+                    const zplCommand = `^XA
 ^MMT
 ^PW812
 ^LL609
@@ -1787,10 +1794,9 @@
 ^FT50,330^A0N,40,40^FDKG ${peso}^FS
 ^FT350,330^A0N,30,30^FD${dataArrivo || ''}^FS
 ^FT400,70^BQN,2,8^FDQA${codiceBarre}^FS
-^XZ
-                    `;
+^XZ`;
                     
-                    const response = await fetch(`http://${zebraIp}/pstprnt`, {
+                    const response = await fetch(zebra.url, {
                         method: 'POST',
                         headers: { 'Content-Type': 'text/plain' },
                         body: zplCommand
@@ -1806,12 +1812,11 @@
                     console.error(`Errore stampa rotolo ${i + 1}:`, error);
                 }
                 
-                // Piccola pausa tra le stampe
                 await new Promise(resolve => setTimeout(resolve, 200));
             }
             
             nascondiLoading();
-            alert(`âœ… Stampa completata!\nStampate: ${stampate}/${stato.rotoli.length}\nErrori: ${errori}`);
+            alert(`Stampa completata!\nStampate: ${stampate}/${stato.rotoli.length}\nErrori: ${errori}`);
         }
         
         // ============================================
