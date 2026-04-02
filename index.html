@@ -17,8 +17,8 @@
     <!-- SheetJS per Excel -->
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     
-    <!-- QRCode per generare QR Code (toDataURL, toCanvas) -->
-    <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+    <!-- QRCode per generare QR Code -->
+    <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js"></script>
     
     <style>
         :root { 
@@ -1512,35 +1512,50 @@
         // ============================================
         // GENERAZIONE ETICHETTA
         // ============================================
-        function loadQRCodeLibrary() {
-            return new Promise((resolve, reject) => {
-                if (window.QRCode) {
-                    return resolve();
-                }
-                const script = document.createElement('script');
-                script.src = 'https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js';
-                script.onload = () => resolve();
-                script.onerror = () => reject(new Error('Impossibile caricare la libreria QRCode'));
-                document.head.appendChild(script);
-            });
-        }
-
         function generateQRCodeDataURL(text, options = {}) {
-            return loadQRCodeLibrary().then(() => {
-                return new Promise((resolve, reject) => {
-                    if (window.QRCode && typeof QRCode.toDataURL === 'function') {
-                        QRCode.toDataURL(text, {
-                            width: options.width || 160,
-                            margin: options.margin !== undefined ? options.margin : 1,
-                            color: options.color || { dark: '#000000', light: '#ffffff' }
-                        }, (err, url) => {
-                            if (err) return reject(err);
-                            resolve(url);
-                        });
-                    } else {
-                        reject(new Error('QRCode library non disponibile - verifica connessione CDN'));
+            return new Promise((resolve, reject) => {
+                try {
+                    if (typeof qrcode === 'undefined') {
+                        return reject(new Error('Libreria qrcode-generator non caricata'));
                     }
-                });
+                    const size = options.width || 160;
+                    const margin = options.margin !== undefined ? options.margin : 4;
+                    const darkColor = options.color?.dark || '#000000';
+                    const lightColor = options.color?.light || '#ffffff';
+
+                    const qr = qrcode(0, 'M');
+                    qr.addData(text);
+                    qr.make();
+
+                    const moduleCount = qr.getModuleCount();
+                    const cellSize = Math.floor((size - margin * 2) / moduleCount);
+                    const canvasSize = cellSize * moduleCount + margin * 2;
+
+                    const canvas = document.createElement('canvas');
+                    canvas.width = canvasSize;
+                    canvas.height = canvasSize;
+                    const ctx = canvas.getContext('2d');
+
+                    ctx.fillStyle = lightColor;
+                    ctx.fillRect(0, 0, canvasSize, canvasSize);
+
+                    ctx.fillStyle = darkColor;
+                    for (let row = 0; row < moduleCount; row++) {
+                        for (let col = 0; col < moduleCount; col++) {
+                            if (qr.isDark(row, col)) {
+                                ctx.fillRect(
+                                    margin + col * cellSize,
+                                    margin + row * cellSize,
+                                    cellSize, cellSize
+                                );
+                            }
+                        }
+                    }
+
+                    resolve(canvas.toDataURL('image/png'));
+                } catch (e) {
+                    reject(e);
+                }
             });
         }
 
