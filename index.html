@@ -381,18 +381,48 @@
         <div class="section-title">PT - Arrivi Merce</div>
         
         <div class="card" style="text-align: center;">
-            <button id="btn-crea-arrivo" class="btn-main btn-success" style="width: 100%; padding: 20px; font-size: 1.2rem; margin-bottom: 15px;">
+            <button onclick="goToCreaArrivo()" class="btn-main btn-success" style="width: 100%; padding: 20px; font-size: 1.2rem; margin-bottom: 15px;">
                 ➕ Crea Arrivo Merce
             </button>
-            <button id="btn-archvio" class="btn-main" style="width: 100%; padding: 20px; font-size: 1.2rem; background: var(--secondary);">
+            <button onclick="goToArchivio()" class="btn-main" style="width: 100%; padding: 20px; font-size: 1.2rem; background: var(--secondary);">
                 📁 Archivio Esportazioni
             </button>
         </div>
     </div>
 
+    <script>
+        // Funzioni globali per onclick
+        window.goToCreaArrivo = function() {
+            document.getElementById('home-page').style.display = 'none';
+            document.getElementById('wizard-container').style.display = 'block';
+            document.getElementById('home-archivio').style.display = 'none';
+            if (typeof stato !== 'undefined') {
+                stato.step = 1;
+                stato.foto = [];
+                stato.rotoli = [];
+                aggiornaUI();
+            }
+        };
+        
+        window.goToArchivio = function() {
+            document.getElementById('home-page').style.display = 'none';
+            document.getElementById('wizard-container').style.display = 'none';
+            document.getElementById('home-archivio').style.display = 'block';
+            if (typeof caricaArchivioHome === 'function') {
+                caricaArchivioHome();
+            }
+        };
+        
+        window.goToHome = function() {
+            document.getElementById('home-page').style.display = 'block';
+            document.getElementById('wizard-container').style.display = 'none';
+            document.getElementById('home-archivio').style.display = 'none';
+        };
+    </script>
+
     <!-- WIZARD CONTAINER (hidden on home) -->
     <div id="wizard-container" style="display: none;">
-        <button onclick="tornaHome()" style="position: absolute; top: 10px; left: 10px; background: none; border: none; font-size: 1.5rem; cursor: pointer; padding: 5px 10px;">
+        <button onclick="goToHome()" style="position: absolute; top: 10px; left: 10px; background: none; border: none; font-size: 1.5rem; cursor: pointer; padding: 5px 10px;">
             ←
         </button>
     
@@ -675,7 +705,7 @@
             📄 Esporta PDF Singolo
         </button>
 
-        <button class="btn-main" onclick="tornaHome()" style="background: var(--secondary); margin-top: 10px;">
+        <button class="btn-main" onclick="goToHome()" style="background: var(--secondary); margin-top: 10px;">
             🏠 Torna alla Home
         </button>
     </div>
@@ -688,7 +718,7 @@
     <div id="home-archivio" class="tab-content container" style="display: none;">
         <div class="section-title">📁 Archivio Esportazioni</div>
         
-        <button onclick="tornaHome()" style="margin-bottom: 15px; background: none; border: none; color: var(--primary); font-size: 1rem; cursor: pointer;">
+        <button onclick="goToHome()" style="margin-bottom: 15px; background: none; border: none; color: var(--primary); font-size: 1rem; cursor: pointer;">
             ← Torna alla Home
         </button>
         
@@ -979,23 +1009,7 @@
         document.getElementById('dataArrivo').valueAsDate = new Date();
         
         // Event listeners per home page
-        document.getElementById('btn-crea-arrivo').addEventListener('click', function() {
-            document.getElementById('home-page').style.display = 'none';
-            document.getElementById('wizard-container').style.display = 'block';
-            document.getElementById('home-archivio').style.display = 'none';
-            stato.step = 1;
-            stato.foto = [];
-            stato.rotoli = [];
-            aggiornaUI();
-        });
-        
-        document.getElementById('btn-archvio').addEventListener('click', function() {
-            document.getElementById('home-page').style.display = 'none';
-            document.getElementById('wizard-container').style.display = 'none';
-            document.getElementById('home-archivio').style.display = 'block';
-            caricaArchivioHome();
-        });
-        
+
         // Aggiungi listener per numero rotoli
         const numRotoliInput = document.getElementById('numRotoliInserire');
         if (numRotoliInput) {
