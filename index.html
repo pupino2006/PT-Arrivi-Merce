@@ -750,6 +750,20 @@
         // ============================================
         const SB_URL = "https://vnzrewcbnoqbqvzckome.supabase.co";
         const SB_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZuenJld2Nibm9xYnF2emNrb21lIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA5Njk2NDUsImV4cCI6MjA4NjU0NTY0NX0.pdnPyYB4DwEjZ10aF3tGigAjiwLGkP-kx07-15L4ass";
+        // Tabella consigliata in Supabase:
+        // Nome: arrivi_etichetta_qr
+        // Colonne:
+        // - id (serial, primaria)
+        // - data_arrivo (date/timestamptz)
+        // - fornitore (text)
+        // - descrizione (text)
+        // - colore (text)
+        // - spessore (real)
+        // - larghezza (int)
+        // - peso (real)
+        // - codice_barre (text)
+        // - qr_image_url (text)
+        // - created_at (timestamptz default now())
         
         let dbArrivi = {
             fornitori: [],
@@ -1534,37 +1548,36 @@
                     display: flex;
                     flex-direction: column;
                 ">
-                    <div style="text-align: center; border-bottom: 2px solid #000; padding-bottom: 3mm; margin-bottom: 3mm; flex-shrink: 0;">
-                        <h2 style="margin: 0; font-size: 14pt;">ETICHETTA ROTOLO</h2>
-                        <p style="margin: 2mm 0 0 0; font-size: 10pt;">PT - Arrivi Merce</p>
+                    <div style="text-align: left; border-bottom: 2px solid #000; padding-bottom: 3mm; margin-bottom: 3mm; flex-shrink: 0;">
+                        <h2 style="margin: 0; font-size: 20pt; letter-spacing: 1px;">ETICHETTA ROTOLO</h2>
                     </div>
                     
                     <div style="margin-bottom: 3mm; flex-grow: 1;">
-                        <div style="display: flex; justify-content: space-between; margin-bottom: 2mm; font-size: 10pt;">
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 2mm; font-size: 14pt;">
                             <span style="font-weight: bold;">Fornitore:</span>
                             <span>${fornitore}</span>
                         </div>
-                        <div style="display: flex; justify-content: space-between; margin-bottom: 2mm; font-size: 10pt;">
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 2mm; font-size: 14pt;">
                             <span style="font-weight: bold;">Descrizione:</span>
                             <span>${descrizione || '-'}</span>
                         </div>
-                        <div style="display: flex; justify-content: space-between; margin-bottom: 2mm; font-size: 10pt;">
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 2mm; font-size: 12pt;">
                             <span style="font-weight: bold;">Colore:</span>
                             <span>${colore || '-'}</span>
                         </div>
-                        <div style="display: flex; justify-content: space-between; margin-bottom: 2mm; font-size: 10pt;">
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 2mm; font-size: 12pt;">
                             <span style="font-weight: bold;">Spessore:</span>
                             <span>${spessore || '-'} mm</span>
                         </div>
-                        <div style="display: flex; justify-content: space-between; margin-bottom: 2mm; font-size: 10pt;">
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 2mm; font-size: 12pt;">
                             <span style="font-weight: bold;">Larghezza:</span>
                             <span>${larghezza || '-'} mm</span>
                         </div>
-                        <div style="display: flex; justify-content: space-between; margin-bottom: 2mm; font-size: 10pt;">
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 2mm; font-size: 12pt;">
                             <span style="font-weight: bold;">Peso:</span>
                             <span>${peso || '-'} KG</span>
                         </div>
-                        <div style="display: flex; justify-content: space-between; margin-bottom: 2mm; font-size: 9pt;">
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 2mm; font-size: 11pt;">
                             <span style="font-weight: bold;">Data Arrivo:</span>
                             <span>${dataArrivo || '-'}</span>
                         </div>
@@ -1572,9 +1585,9 @@
                     
                     <div style="text-align: center; margin-top: auto; padding-top: 3mm; border-top: 1px solid #000; flex-shrink: 0;">
                         <div id="qrCodeContainer" style="display: inline-block; padding: 2mm; background: white; border: 1px solid #000; margin-bottom: 2mm;">
-                            <img id="qrCodeImg" style="width: 80px; height: 80px; display: block;" src="" alt="QR Code">
+                            <img id="qrCodeImg" style="width: 120px; height: 120px; display: block;" src="" alt="QR Code">
                         </div>
-                        <p style="margin: 2mm 0 0 0; font-size: 9pt; font-weight: bold;">${codiceBarre}</p>
+                        <p style="margin: 2mm 0 0 0; font-size: 10pt; font-weight: bold;">${codiceBarre}</p>
                     </div>
                 </div>
             `;
@@ -2080,11 +2093,11 @@
                         }
                         .header h2 {
                             margin: 0;
-                            font-size: 14pt;
+                            font-size: 18pt;
                         }
                         .header p {
                             margin: 2mm 0 0 0;
-                            font-size: 10pt;
+                            font-size: 12pt;
                         }
                         .dati {
                             margin-bottom: 3mm;
@@ -2093,7 +2106,7 @@
                             display: flex;
                             justify-content: space-between;
                             margin-bottom: 2mm;
-                            font-size: 10pt;
+                            font-size: 12pt;
                         }
                         .riga span:first-child {
                             font-weight: bold;
@@ -2124,7 +2137,6 @@
                     <div class="etichetta">
                         <div class="header">
                             <h2>ETICHETTA ROTOLO</h2>
-                            <p>PT - Arrivi Merce</p>
                         </div>
                         
                         <div class="dati">
@@ -2212,6 +2224,7 @@
                             } else {
                                 qrImg.src = url;
                                 console.log(`✔ QR Code generato per rotolo ${idx + 1}`);
+                                salvaEtichettaSupabase(rotolo, url);
                             }
                             resolve();
                         }
@@ -2231,6 +2244,43 @@
         
         function esportaEtichettePDF() {
             esportaEtichette(true);
+        }
+
+        async function salvaEtichettaSupabase(rotolo, qrUrl) {
+            if (!rotolo || !rotolo.codiceBarre) return;
+            const record = {
+                data_arrivo: document.getElementById('dataArrivo').value || null,
+                fornitore: document.getElementById('fornitore').value || rotolo.fornitore || null,
+                descrizione: rotolo.descrizione || null,
+                colore: rotolo.colore || null,
+                spessore: rotolo.spessore || null,
+                larghezza: rotolo.larghezza || null,
+                peso: rotolo.peso || null,
+                codice_barre: rotolo.codiceBarre,
+                qr_image_url: qrUrl,
+                created_at: new Date().toISOString()
+            };
+
+            try {
+                const res = await fetch(`${SB_URL}/rest/v1/arrivi_etichetta_qr`, {
+                    method: 'POST',
+                    headers: {
+                        apikey: SB_KEY,
+                        Authorization: `Bearer ${SB_KEY}`,
+                        'Content-Type': 'application/json',
+                        Prefer: 'return=representation'
+                    },
+                    body: JSON.stringify(record)
+                });
+
+                if (!res.ok) {
+                    console.warn('Warning: impossibile salvare in Supabase etichetta', await res.text());
+                } else {
+                    console.log('✔ Etichetta salvata su Supabase', record.codice_barre);
+                }
+            } catch (err) {
+                console.error('Errore save Supabase etichetta:', err);
+            }
         }
 
         function nuovoCarico() {
