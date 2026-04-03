@@ -2038,8 +2038,21 @@
                     <head>
                         <title>Etichette Rotoli - ${dataArrivo}</title>
                         <style>
+                            .chiudi-btn {
+                                position: fixed;
+                                top: 10px;
+                                right: 10px;
+                                padding: 10px 20px;
+                                background: #dc3545;
+                                color: white;
+                                border: none;
+                                border-radius: 5px;
+                                cursor: pointer;
+                                font-size: 14px;
+                                z-index: 1000;
+                            }
                             @page {
-                                size: 230mm 160mm landscape;
+                                size: 223mm 155mm landscape;
                                 margin: 0;
                             }
                             body {
@@ -2048,8 +2061,8 @@
                                 padding: 0;
                             }
                             .etichetta {
-                                width: 230mm;
-                                height: 160mm;
+                                width: 223mm;
+                                height: 155mm;
                                 padding: 5mm;
                                 box-sizing: border-box;
                                 background: white;
@@ -2068,13 +2081,13 @@
                                 margin-bottom: 3mm;
                             }
                             .header-logo {
-                                width: 25mm;
+                                width: 50mm;
                                 height: auto;
                                 margin-right: 3mm;
                             }
                             .header h2 {
                                 margin: 0;
-                                font-size: 18pt;
+                                font-size: 20pt;
                                 flex-grow: 1;
                             }
                             .header-qr {
@@ -2084,14 +2097,14 @@
                                 margin-left: 5mm;
                             }
                             .header-qr img {
-                                width: 100px;
-                                height: 100px;
+                                width: 110px;
+                                height: 110px;
                                 border: 1px solid #000;
                                 display: block;
                             }
                             .header-qr p {
                                 margin: 2mm 0 0 0;
-                                font-size: 9pt;
+                                font-size: 10pt;
                                 font-weight: bold;
                                 text-align: center;
                             }
@@ -2102,7 +2115,7 @@
                                 display: flex;
                                 justify-content: space-between;
                                 margin-bottom: 2mm;
-                                font-size: 12pt;
+                                font-size: 14pt;
                             }
                             .riga span:first-child {
                                 font-weight: bold;
@@ -2110,13 +2123,14 @@
                         </style>
                     </head>
                     <body>
+                        <button class="chiudi-btn" onclick="window.close()">✕ Chiudi</button>
                 `;
 
                 // Ora crea le etichette CON i QR già generati
                 results.forEach(({rotolo, qrUrl}) => {
                     const qrImgTag = qrUrl 
-                        ? `<img src="${qrUrl}" alt="QR Code" style="width: 100px; height: 100px; border: 1px solid #000; display: block;">`
-                        : `<div style="width: 100px; height: 100px; border: 1px solid #ccc; background: #f5f5f5; display: flex; align-items: center; justify-content: center; font-size: 10pt;">N/A</div>`;
+                        ? `<img src="${qrUrl}" alt="QR Code" style="width: 110px; height: 110px; border: 1px solid #000; display: block;">`
+                        : `<div style="width: 110px; height: 110px; border: 1px solid #ccc; background: #f5f5f5; display: flex; align-items: center; justify-content: center; font-size: 10pt;">N/A</div>`;
 
                     etichetteHTML += `
                         <div class="etichetta">
