@@ -928,6 +928,12 @@
         // NAVIGAZIONE STEP
         // ============================================
         function vaiAlStep(step) {
+            // Step 5 (Archivio) è accessibile direttamente dalla home
+            if (step === 5 && stato.step === 0) {
+                stato.step = step;
+                aggiornaUI();
+                return;
+            }
             if (step < stato.step) {
                 // Puoi tornare indietro
                 stato.step = step;
@@ -1690,7 +1696,7 @@
                     
                     // Apri anteprima in nuova scheda CON il QR già dentro
                     const printWindow = window.open('', '_blank');
-                    printWindow.document.write('<html><head><title>Anteprima Etichetta</title><style>@page{size:230mm 160mm landscape;margin:0;}body{margin:0;padding:0;}@media print{body{margin:0;padding:0;}}</style></head><body>');
+                    printWindow.document.write('<html><head><title>Anteprima Etichetta</title><style>@page{size:160mm 230mm portrait;margin:0;}body{margin:0;padding:0;}@media print{body{margin:0;padding:0;}}</style></head><body>');
                     printWindow.document.write(etichettaHTML);
                     printWindow.document.write('</body></html>');
                     printWindow.document.close();
@@ -2051,8 +2057,44 @@
                                 font-size: 14px;
                                 z-index: 1000;
                             }
+                            @media print {
+                                .chiudi-btn {
+                                    display: none !important;
+                                }
+                                .etichetta {
+                                    width: 100% !important;
+                                    height: 100% !important;
+                                    border: none;
+                                    page-break-after: always;
+                                }
+                                .header-logo {
+                                    width: 35mm !important;
+                                }
+                                .header h2 {
+                                    font-size: 14pt !important;
+                                }
+                                .riga {
+                                    font-size: 10pt !important;
+                                    margin-bottom: 1mm !important;
+                                }
+                                .header-qr img {
+                                    width: 60px !important;
+                                    height: 60px !important;
+                                }
+                            }
+                            @media print and (max-width: 400px) {
+                                .header-logo {
+                                    width: 25mm !important;
+                                }
+                                .header h2 {
+                                    font-size: 10pt !important;
+                                }
+                                .riga {
+                                    font-size: 8pt !important;
+                                }
+                            }
                             @page {
-                                size: 223mm 155mm landscape;
+                                size: 160mm 230mm portrait;
                                 margin: 0;
                             }
                             body {
@@ -2061,9 +2103,9 @@
                                 padding: 0;
                             }
                             .etichetta {
-                                width: 223mm;
-                                height: 155mm;
-                                padding: 5mm;
+                                width: 160mm;
+                                height: 230mm;
+                                padding: 3mm;
                                 box-sizing: border-box;
                                 background: white;
                                 border: 1px solid #000;
@@ -2077,45 +2119,45 @@
                                 justify-content: space-between;
                                 align-items: flex-start;
                                 border-bottom: 2px solid #000;
-                                padding-bottom: 3mm;
-                                margin-bottom: 3mm;
+                                padding-bottom: 2mm;
+                                margin-bottom: 2mm;
                             }
                             .header-logo {
-                                width: 50mm;
+                                width: 35mm;
                                 height: auto;
-                                margin-right: 3mm;
+                                margin-right: 2mm;
                             }
                             .header h2 {
                                 margin: 0;
-                                font-size: 20pt;
+                                font-size: 16pt;
                                 flex-grow: 1;
                             }
                             .header-qr {
                                 display: flex;
                                 flex-direction: column;
                                 align-items: center;
-                                margin-left: 5mm;
+                                margin-left: 3mm;
                             }
                             .header-qr img {
-                                width: 110px;
-                                height: 110px;
+                                width: 80px;
+                                height: 80px;
                                 border: 1px solid #000;
                                 display: block;
                             }
                             .header-qr p {
-                                margin: 2mm 0 0 0;
-                                font-size: 10pt;
+                                margin: 1mm 0 0 0;
+                                font-size: 8pt;
                                 font-weight: bold;
                                 text-align: center;
                             }
                             .dati {
-                                margin-bottom: 3mm;
+                                margin-bottom: 2mm;
                             }
                             .riga {
                                 display: flex;
                                 justify-content: space-between;
-                                margin-bottom: 2mm;
-                                font-size: 14pt;
+                                margin-bottom: 1mm;
+                                font-size: 12pt;
                             }
                             .riga span:first-child {
                                 font-weight: bold;
@@ -2129,8 +2171,8 @@
                 // Ora crea le etichette CON i QR già generati
                 results.forEach(({rotolo, qrUrl}) => {
                     const qrImgTag = qrUrl 
-                        ? `<img src="${qrUrl}" alt="QR Code" style="width: 110px; height: 110px; border: 1px solid #000; display: block;">`
-                        : `<div style="width: 110px; height: 110px; border: 1px solid #ccc; background: #f5f5f5; display: flex; align-items: center; justify-content: center; font-size: 10pt;">N/A</div>`;
+                        ? `<img src="${qrUrl}" alt="QR Code" style="width: 80px; height: 80px; border: 1px solid #000; display: block;">`
+                        : `<div style="width: 80px; height: 80px; border: 1px solid #ccc; background: #f5f5f5; display: flex; align-items: center; justify-content: center; font-size: 8pt;">N/A</div>`;
 
                     etichetteHTML += `
                         <div class="etichetta">
