@@ -1726,14 +1726,76 @@
         }
         
         // ============================================
+        // SALVA CARICO COMPLETO SU SUPABASE (arrivi_merce)
+        // ============================================
+        async function salvaCaricoSupabase() {
+            const dataArrivo = document.getElementById('dataArrivo').value;
+            const fornitore = document.getElementById('fornitore').value;
+            const note = document.getElementById('note').value;
+            
+            const numColli = stato.rotoli.length;
+            const totalePeso = stato.rotoli.reduce((sum, r) => sum + (r.peso || 0), 0);
+            
+            const colliDati = stato.rotoli.map((r, idx) => ({
+                rotolo: idx + 1,
+                codice_barre: r.codiceBarre || '',
+                descrizione: r.descrizione || '',
+                colore: r.colore || '',
+                spessore: r.spessore || null,
+                larghezza: r.larghezza || null,
+                peso: r.peso || 0,
+                mq: r.mq || 0
+            }));
+
+            const totaleMQ = colliDati.reduce((sum, c) => sum + (c.mq || 0), 0);
+
+            try {
+                const res = await fetch(`${SB_URL}/rest/v1/arrivi_merce`, {
+                    method: 'POST',
+                    headers: {
+                        apikey: SB_KEY,
+                        Authorization: `Bearer ${SB_KEY}`,
+                        'Content-Type': 'application/json',
+                        Prefer: 'return=representation'
+                    },
+                    body: JSON.stringify({
+                        data_arrivo: dataArrivo,
+                        fornitore: fornitore,
+                        num_colli: numColli,
+                        totale_mq: totaleMQ,
+                        totale_peso: totalePeso,
+                        colli_dati: colliDati,
+                        note: note
+                    })
+                });
+
+                if (res.ok) {
+                    console.log('✅ Carico salvato su Supabase');
+                    return true;
+                } else {
+                    console.error('Errore salvataggio carico:', await res.text());
+                    return false;
+                }
+            } catch (err) {
+                console.error('Errore connection:', err);
+                return false;
+            }
+        }
+
+        // ============================================
         // ARCHIVIO DA SUPABASE
         // ============================================
         async function caricaArchivio() {
             const lista = document.getElementById('listaArchivio');
             try {
-                const res = await fetch(`${SB_URL}/rest/v1/arrivi_etichetta_qr?select=*&order=created_at.desc&limit=20`, {
+                const res = await fetch(`${SB_URL}/rest/v1/arrivi_merce?select=*&order=created_at.desc&limit=50`, {
                     headers: { 'apikey': SB_KEY, 'Authorization': `Bearer ${SB_KEY}` }
                 });
+                
+                if (!res.ok) {
+                    throw new Error('Tabella non trovata');
+                }
+                
                 const data = await res.json();
                 
                 if (data.length === 0) {
@@ -1741,16 +1803,160 @@
                     return;
                 }
                 
-                lista.innerHTML = data.map(item => `
-                    <div class="collo-card" style="margin-bottom: 10px; padding: 10px;">
-                        <div style="font-weight: bold; color: var(--primary);">${item.codice_barre}</div>
-                        <div style="font-size: 0.8rem;">${item.fornitore} - ${item.peso} KG</div>
-                        <div style="font-size: 0.7rem; color: #888;">${new Date(item.created_at).toLocaleDateString()}</div>
+                lista.innerHTML = data.map((item, idx) => `
+                    <div class="collo-card" style="margin-bottom: 15px; padding: 15px; border-left: 4px solid var(--primary);">
+                        <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                            <div>
+                                <div style="font-weight: bold; color: var(--primary); font-size: 1.1rem;">${item.fornitore || 'Carico'}</div>
+                                <div style="font-size: 0.8rem; margin-top: 5px;">Colli: ${item.num_colli || 0} | MQ: ${item.totale_mq || 0} | KG: ${item.totale_peso || 0}</div>
+                                <div style="font-size: 0.7rem; color: #888;">${item.data_arrivo ? new Date(item.data_arrivo).toLocaleDateString() : ''} - ${item.created_at ? new Date(item.created_at).toLocaleDateString() : ''}</div>
+                                ${item.note ? `<div style="font-size: 0.7rem; margin-top: 5px; color: #666;">Note: ${item.note}</div>` : ''}
+                            </div>
+                            <button onclick="ristampaEtichetteDaArchivio(${idx})" style="
+                                background: var(--primary);
+                                color: white;
+                                border: none;
+                                border-radius: 8px;
+                                padding: 10px 15px;
+                                font-size: 0.8rem;
+                                cursor: pointer;
+                                font-weight: bold;
+                            ">🏷️ Ristampa</button>
+                        </div>
                     </div>
                 `).join('');
+                
+                // Salva i dati per uso futuro
+                window.archivioDati = data;
             } catch (err) {
-                lista.innerHTML = '<p style="color: red;">Errore nel caricamento dell\'archivio.</p>';
+                console.error('Errore archivio:', err);
+                lista.innerHTML = '<p style="color: red;">Errore nel caricamento dell\'archivio. Verifica che la tabella arrivi_merce esista in Supabase.</p>';
             }
+        }
+        
+        // ============================================
+        // RISTAMPA ETICHETTE DA ARCHIVIO
+        // ============================================
+        async function ristampaEtichetteDaArchivio(idx) {
+            const carico = window.archivioDati[idx];
+            if (!carico || !carico.colli_dati) {
+                alert('Nessun dato disponibile per la ristampa');
+                return;
+            }
+            
+            const rotoli = carico.colli_dati;
+            const dataArrivo = carico.data_arrivo;
+            const fornitore = carico.fornitore;
+            
+            console.log('Ristampa etichette per carico:', fornitore, 'rotoli:', rotoli.length);
+            
+            // Genera QR code per ogni rotolo
+            const qrPromises = rotoli.map((collo) => {
+                return new Promise((resolve) => {
+                    const codice = collo.codice_barre || '';
+                    if (!codice) {
+                        resolve({ collo, qrUrl: null });
+                        return;
+                    }
+                    generateQRCodeDataURL(codice, {
+                        width: 100,
+                        margin: 1,
+                        color: { dark: '#000000', light: '#ffffff' }
+                    }).then((url) => {
+                        resolve({ collo, qrUrl: url });
+                    }).catch(() => {
+                        resolve({ collo, qrUrl: null });
+                    });
+                });
+            });
+            
+            const results = await Promise.all(qrPromises);
+            
+            // Crea HTML etichette
+            let etichetteHTML = `
+                <html>
+                <head>
+                    <title>Etichette Rotoli - ${fornitore}</title>
+                    <style>
+                        .chiudi-btn {
+                            position: fixed;
+                            top: 10px;
+                            right: 10px;
+                            padding: 10px 20px;
+                            background: #dc3545;
+                            color: white;
+                            border: none;
+                            border-radius: 5px;
+                            cursor: pointer;
+                            font-size: 14px;
+                            z-index: 1000;
+                        }
+                        @media print {
+                            .chiudi-btn { display: none !important; }
+                            .etichetta { page-break-after: always; border: none; }
+                        }
+                        @page { size: 160mm 230mm portrait; margin: 0; }
+                        body { font-family: 'Segoe UI', sans-serif; margin: 0; padding: 0; }
+                        .etichetta {
+                            width: 160mm; height: 230mm; padding: 3mm;
+                            box-sizing: border-box; background: white;
+                            border: 1px solid #000; page-break-after: always;
+                        }
+                        .etichetta:last-child { page-break-after: avoid; }
+                        .header {
+                            display: flex; justify-content: space-between;
+                            align-items: flex-start; border-bottom: 2px solid #000;
+                            padding-bottom: 2mm; margin-bottom: 2mm;
+                        }
+                        .header-logo { width: 35mm; height: auto; margin-right: 2mm; }
+                        .header h2 { margin: 0; font-size: 16pt; flex-grow: 1; }
+                        .header-qr { display: flex; flex-direction: column; align-items: center; margin-left: 3mm; }
+                        .header-qr img { width: 80px; height: 80px; border: 1px solid #000; display: block; }
+                        .header-qr p { margin: 1mm 0 0 0; font-size: 8pt; font-weight: bold; text-align: center; }
+                        .dati { margin-bottom: 2mm; }
+                        .riga { display: flex; justify-content: space-between; margin-bottom: 1mm; font-size: 12pt; }
+                        .riga span:first-child { font-weight: bold; }
+                    </style>
+                </head>
+                <body>
+                    <button class="chiudi-btn" onclick="window.close()">✕ Chiudi</button>
+            `;
+            
+            results.forEach(({ collo, qrUrl }) => {
+                const qrImg = qrUrl 
+                    ? `<img src="${qrUrl}" alt="QR" style="width: 80px; height: 80px; border: 1px solid #000; display: block;">`
+                    : `<div style="width: 80px; height: 80px; border: 1px solid #ccc; background: #f5f5f5; display: flex; align-items: center; justify-content: center;">N/A</div>`;
+                    
+                etichetteHTML += `
+                    <div class="etichetta">
+                        <div class="header">
+                            <img src="ptsimbolo.png" class="header-logo" alt="PT Logo">
+                            <h2>ETICHETTA ROTOLO</h2>
+                            <div class="header-qr">
+                                ${qrImg}
+                                <p>${collo.codice_barre || 'N/D'}</p>
+                            </div>
+                        </div>
+                        <div class="dati">
+                            <div class="riga"><span>Fornitore:</span><span>${fornitore || '-'}</span></div>
+                            <div class="riga"><span>Descrizione:</span><span>${collo.descrizione || '-'}</span></div>
+                            <div class="riga"><span>Colore:</span><span>${collo.colore || '-'}</span></div>
+                            <div class="riga"><span>Spessore:</span><span>${collo.spessore || '-'} mm</span></div>
+                            <div class="riga"><span>Larghezza:</span><span>${collo.larghezza || '-'} mm</span></div>
+                            <div class="riga"><span>Peso:</span><span>${collo.peso || '-'} KG</span></div>
+                            <div class="riga"><span>Data Arrivo:</span><span>${dataArrivo ? new Date(dataArrivo).toLocaleDateString() : '-'}</span></div>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            etichetteHTML += '</body></html>';
+            
+            const printWindow = window.open('', '_blank');
+            printWindow.document.write(etichetteHTML);
+            printWindow.document.close();
+            
+            alert('📋 Apri la finestra e usa Ctrl+P per stampare le etichette');
         }
         
         // ============================================
@@ -1997,7 +2203,14 @@
             const nomeFile = `arrivi_${dataArrivo.replace(/-/g, '')}_${Date.now()}.xlsx`;
             XLSX.writeFile(wb, nomeFile);
             
-            alert('âœ… File Excel scaricato!');
+            // Salva anche su Supabase
+            salvaCaricoSupabase().then(success => {
+                if (success) {
+                    alert('✅ File Excel scaricato e carico salvato in archivio!');
+                } else {
+                    alert('✅ File Excel scaricato! (Errore nel salvataggio archivio)');
+                }
+            });
         }
         
         function esportaEtichette(pdf = false) {
