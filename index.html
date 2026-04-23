@@ -1,4 +1,4 @@
-﻿﻿<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="it">
 <head>
     <meta charset="UTF-8">
@@ -1605,7 +1605,7 @@
             });
         }
 
-        function generaEtichetta() {
+function generaEtichetta() {
             const fornitore = document.getElementById('fornitore').value;
             const descrizione = document.getElementById('descrizione').value || document.getElementById('descrizioneComune').value;
             const colore = document.getElementById('codiceColore').value || document.getElementById('codiceColoreComune').value;
@@ -1633,8 +1633,8 @@
             }
 
             generateQRCodeDataURL(qrData, {
-                width: 140,
-                margin: 0,
+                width: 220,
+                margin: 2,
                 color: { dark: '#000000', light: '#ffffff' }
             })
             .then((qrUrl) => {
@@ -1642,53 +1642,53 @@
                 const etichettaHTML = `
                     <div style="
                         font-family: 'Segoe UI', sans-serif;
-                        width: 230mm;
-                        height: 160mm;
-                        padding: 5mm;
+                        width: 155mm;
+                        height: 105mm;
+                        padding: 3mm;
                         box-sizing: border-box;
                         background: white;
                         border: 1px solid #000;
                         display: flex;
                         flex-direction: column;
                         page-break-after: always;
+                        overflow: hidden;
                     ">
-                            <div style="display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #000; padding-bottom: 3mm; margin-bottom: 3mm; flex-shrink: 0;">
-                                <img src="ptsimbolo.png" style="width: 25mm; height: auto; margin-right: 3mm;">
-                                <h2 style="margin: 0; font-size: 20pt; letter-spacing: 1px; flex-grow: 1;">ETICHETTA ROTOLO</h2>
-                                <div style="display: flex; flex-direction: column; align-items: center; margin-left: 5mm;">
-                                    <img style="width: 100px; height: 100px; display: block; border: 1px solid #000;" src="${qrUrl}" alt="QR Code">
-                                    <p style="margin: 2mm 0 0 0; font-size: 9pt; font-weight: bold; text-align: center;">${codiceBarre}</p>
+                            <div style="display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #000; padding-bottom: 2mm; margin-bottom: 2mm; flex-shrink: 0; height: 18mm;">
+                                <img src="ptsimbolo.png" style="width: 14mm; height: auto; margin-right: 2mm;">
+                                <h2 style="margin: 0; font-size: 12pt; letter-spacing: 1px; flex-grow: 1; line-height: 18px;">ETICHETTA ROTOLO</h2>
+                                <div style="display: flex; flex-direction: column; align-items: center; margin-left: 2mm;">
+                                    <img style="width: 55px; height: 55px; display: block; border: 1px solid #000;" src="${qrUrl}" alt="QR Code">
+                                    <p style="margin: 1mm 0 0 0; font-size: 10pt; font-weight: bold; text-align: center;">${codiceBarre}</p>
                                 </div>
                             </div>
-                            
-                            <div style="margin-bottom: 3mm; flex-grow: 1;">
-                                <div style="display: flex; justify-content: space-between; margin-bottom: 2mm; font-size: 14pt;">
+                             
+                            <div style="margin-bottom: 2mm; flex-grow: 1; display: flex; flex-direction: column; justify-content: space-between;">
+                                <div style="display: flex; justify-content: space-between; margin-bottom: 1mm; font-size: 12pt; line-height: 16px;">
                                     <span style="font-weight: bold;">Fornitore:</span>
                                     <span>${fornitore}</span>
                                 </div>
-                                <div style="display: flex; justify-content: space-between; margin-bottom: 2mm; font-size: 14pt;">
+                                <div style="display: flex; justify-content: space-between; margin-bottom: 1mm; font-size: 12pt; line-height: 16px;">
                                     <span style="font-weight: bold;">Descrizione:</span>
                                     <span>${descrizione || '-'}</span>
                                 </div>
-                                <div style="display: flex; justify-content: space-between; margin-bottom: 2mm; font-size: 12pt;">
+                                <div style="display: flex; justify-content: space-between; margin-bottom: 1mm; font-size: 10pt;">
                                     <span style="font-weight: bold;">Colore:</span>
                                     <span>${colore || '-'}</span>
                                 </div>
-                                <div style="display: flex; justify-content: space-between; margin-bottom: 2mm; font-size: 12pt;">
+                                <div style="display: flex; justify-content: space-between; margin-bottom: 1mm; font-size: 10pt;">
                                     <span style="font-weight: bold;">Spessore:</span>
                                     <span>${spessore || '-'} mm</span>
                                 </div>
-                                <div style="display: flex; justify-content: space-between; margin-bottom: 2mm; font-size: 12pt;">
+                                <div style="display: flex; justify-content: space-between; margin-bottom: 1mm; font-size: 10pt;">
                                     <span style="font-weight: bold;">Larghezza:</span>
                                     <span>${larghezza || '-'} mm</span>
                                 </div>
-                                <div style="display: flex; justify-content: space-between; margin-bottom: 2mm; font-size: 12pt;">
-                                    <span style="font-weight: bold;">Peso:</span>
-                                    <span>${peso || '-'} KG</span>
-                                </div>
-                                <div style="display: flex; justify-content: space-between; margin-bottom: 2mm; font-size: 11pt;">
+                                <div style="display: flex; justify-content: space-between; margin-bottom: 1mm; font-size: 9pt;">
                                     <span style="font-weight: bold;">Data Arrivo:</span>
                                     <span>${dataArrivo || '-'}</span>
+                                </div>
+                                <div style="display: flex; justify-content: center; margin-top: 2mm;">
+                                    <p style="margin: 0; font-size: 18pt; font-weight: bold;">${peso || '-'} KG</p>
                                 </div>
                             </div>
                         </div>
