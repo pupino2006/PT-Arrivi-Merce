@@ -1653,12 +1653,13 @@ function generaEtichetta() {
                         page-break-after: always;
                         overflow: hidden;
                     ">
-                             <div style="display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #000; padding-bottom: 2mm; margin-bottom: 2mm; flex-shrink: 0; height: 18mm;">
-                                 <img src="ptsimbolo.png" style="width: 14mm; height: auto; margin-right: 2mm;">
-                                 <h2 style="margin: 0; font-size: 19pt; letter-spacing: 1px; flex-grow: 1; line-height: 18px;">ETICHETTA ROTOLO</h2>
-                                 <div style="display: flex; flex-direction: column; align-items: center; margin-left: -18mm;">
-                                     <img style="width: 55px; height: 55px; display: block; border: 1px solid #000;" src="${qrUrl}" alt="QR Code">
-                                     <p style="margin: 1mm 0 0 0; font-size: 16pt; font-weight: bold; text-align: center;">${codiceBarre}</p>
+                             <div style="display: flex; justify-content: center; align-items: flex-start; border-bottom: 2px solid #000; padding-bottom: 2mm; margin-bottom: 2mm; flex-shrink: 0; height: 18mm;">
+                                 <div style="display: flex; align-items: center; gap: 10px;">
+                                     <img src="ptsimbolo.png" style="width: 14mm; height: auto;">
+                                     <div style="display: flex; flex-direction: column; align-items: center;">
+                                         <img style="width: 55px; height: 55px; display: block; border: 1px solid #000;" src="${qrUrl}" alt="QR Code">
+                                         <p style="margin: 1mm 0 0 0; font-size: 16pt; font-weight: bold; text-align: center;">${codiceBarre}</p>
+                                     </div>
                                  </div>
                              </div>
                              
