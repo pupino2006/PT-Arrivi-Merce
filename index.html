@@ -959,8 +959,8 @@
                 return document.getElementById('fornitore').value !== '';
             }
             if (step === 3) {
-                // Verifica che tutti i rotoli abbiano almeno il peso
-                return stato.rotoli.every(r => r.peso > 0);
+                // Verifica che tutti i rotoli abbiano almeno il codice a barre
+                return stato.rotoli.every(r => r.codiceBarre);
             }
             return true;
         }
@@ -1132,7 +1132,7 @@
                     stato.rotoli.push({
                         ...dati,
                         nomeFoto: stato.foto[i].nome,
-                        compilato: dati.peso > 0 && dati.mq > 0
+                        compilato: !!dati.codiceBarre
                     });
                     
                     stato.foto[i].elaborata = true;
@@ -1653,50 +1653,50 @@ function generaEtichetta() {
                         page-break-after: always;
                         overflow: hidden;
                     ">
-                            <div style="display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #000; padding-bottom: 2mm; margin-bottom: 2mm; flex-shrink: 0; height: 18mm;">
-                                <img src="ptsimbolo.png" style="width: 14mm; height: auto; margin-right: 2mm;">
-                                <h2 style="margin: 0; font-size: 12pt; letter-spacing: 1px; flex-grow: 1; line-height: 18px;">ETICHETTA ROTOLO</h2>
-                                <div style="display: flex; flex-direction: column; align-items: center; margin-left: 2mm;">
-                                    <img style="width: 55px; height: 55px; display: block; border: 1px solid #000;" src="${qrUrl}" alt="QR Code">
-                                    <p style="margin: 1mm 0 0 0; font-size: 10pt; font-weight: bold; text-align: center;">${codiceBarre}</p>
-                                </div>
-                            </div>
+                             <div style="display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #000; padding-bottom: 2mm; margin-bottom: 2mm; flex-shrink: 0; height: 18mm;">
+                                 <img src="ptsimbolo.png" style="width: 14mm; height: auto; margin-right: 2mm;">
+                                 <h2 style="margin: 0; font-size: 16pt; letter-spacing: 1px; flex-grow: 1; line-height: 18px;">ETICHETTA ROTOLO</h2>
+                                 <div style="display: flex; flex-direction: column; align-items: center; margin-left: -8mm;">
+                                     <img style="width: 55px; height: 55px; display: block; border: 1px solid #000;" src="${qrUrl}" alt="QR Code">
+                                     <p style="margin: 1mm 0 0 0; font-size: 13pt; font-weight: bold; text-align: center;">${codiceBarre}</p>
+                                 </div>
+                             </div>
                              
-                            <div style="margin-bottom: 2mm; flex-grow: 1; display: flex; flex-direction: column; justify-content: space-between;">
-                                <div style="display: flex; justify-content: space-between; margin-bottom: 1mm; font-size: 12pt; line-height: 16px;">
-                                    <span style="font-weight: bold;">Fornitore:</span>
-                                    <span>${fornitore}</span>
-                                </div>
-                                <div style="display: flex; justify-content: space-between; margin-bottom: 1mm; font-size: 12pt; line-height: 16px;">
-                                    <span style="font-weight: bold;">Descrizione:</span>
-                                    <span>${descrizione || '-'}</span>
-                                </div>
-                                <div style="display: flex; justify-content: space-between; margin-bottom: 1mm; font-size: 10pt;">
-                                    <span style="font-weight: bold;">Colore:</span>
-                                    <span>${colore || '-'}</span>
-                                </div>
-                                <div style="display: flex; justify-content: space-between; margin-bottom: 1mm; font-size: 10pt;">
-                                    <span style="font-weight: bold;">Spessore:</span>
-                                    <span>${spessore || '-'} mm</span>
-                                </div>
-                                <div style="display: flex; justify-content: space-between; margin-bottom: 1mm; font-size: 10pt;">
-                                    <span style="font-weight: bold;">Larghezza:</span>
-                                    <span>${larghezza || '-'} mm</span>
-                                </div>
-                                <div style="display: flex; justify-content: space-between; margin-bottom: 1mm; font-size: 9pt;">
-                                    <span style="font-weight: bold;">Data Arrivo:</span>
-                                    <span>${dataArrivo || '-'}</span>
-                                </div>
-                                <div style="display: flex; justify-content: center; margin-top: 2mm;">
-                                    <p style="margin: 0; font-size: 18pt; font-weight: bold;">${peso || '-'} KG</p>
-                                </div>
-                            </div>
+                             <div style="margin-bottom: 2mm; flex-grow: 1; display: flex; flex-direction: column; justify-content: space-between;">
+                                 <div style="display: flex; justify-content: space-between; margin-bottom: 1mm; font-size: 16pt; line-height: 16px;">
+                                     <span style="font-weight: bold;">Fornitore:</span>
+                                     <span>${fornitore}</span>
+                                 </div>
+                                 <div style="display: flex; justify-content: space-between; margin-bottom: 1mm; font-size: 16pt; line-height: 16px;">
+                                     <span style="font-weight: bold;">Descrizione:</span>
+                                     <span>${descrizione || '-'}</span>
+                                 </div>
+                                 <div style="display: flex; justify-content: space-between; margin-bottom: 1mm; font-size: 13pt;">
+                                     <span style="font-weight: bold;">Colore:</span>
+                                     <span>${colore || '-'}</span>
+                                 </div>
+                                 <div style="display: flex; justify-content: space-between; margin-bottom: 1mm; font-size: 13pt;">
+                                     <span style="font-weight: bold;">Spessore:</span>
+                                     <span>${spessore || '-'} mm</span>
+                                 </div>
+                                 <div style="display: flex; justify-content: space-between; margin-bottom: 1mm; font-size: 13pt;">
+                                     <span style="font-weight: bold;">Larghezza:</span>
+                                     <span>${larghezza || '-'} mm</span>
+                                 </div>
+                                 <div style="display: flex; justify-content: space-between; margin-bottom: 1mm; font-size: 12pt;">
+                                     <span style="font-weight: bold;">Data Arrivo:</span>
+                                     <span>${dataArrivo || '-'}</span>
+                                 </div>
+                                 <div style="display: flex; justify-content: center; margin-top: 2mm;">
+                                     <p style="margin: 0; font-size: 24pt; font-weight: bold;">${peso || '-'} KG</p>
+                                 </div>
+                             </div>
                         </div>
                     `;
                     
                     // Apri anteprima in nuova scheda CON il QR già dentro
                     const printWindow = window.open('', '_blank');
-                    printWindow.document.write('<html><head><title>Anteprima Etichetta</title><style>@page{size:160mm 230mm portrait;margin:0;}body{margin:0;padding:0;}@media print{body{margin:0;padding:0;}}</style></head><body>');
+                    printWindow.document.write('<html><head><title>Anteprima Etichetta</title><style>                        @page{size:160mm 230mm landscape;margin:0;}body{margin:0;padding:0;}@media print{body{margin:0;padding:0;}}</style></head><body>');
                     printWindow.document.write(etichettaHTML);
                     printWindow.document.write('</body></html>');
                     printWindow.document.close();
@@ -1895,7 +1895,7 @@ function generaEtichetta() {
                             .chiudi-btn { display: none !important; }
                             .etichetta { page-break-after: always; border: none; }
                         }
-                        @page { size: 160mm 230mm portrait; margin: 0; }
+                        @page { size: 160mm 230mm landscape; margin: 0; }
                         body { font-family: 'Segoe UI', sans-serif; margin: 0; padding: 0; }
                         .etichetta {
                             width: 160mm; height: 230mm; padding: 3mm;
@@ -1909,12 +1909,12 @@ function generaEtichetta() {
                             padding-bottom: 2mm; margin-bottom: 2mm;
                         }
                         .header-logo { width: 35mm; height: auto; margin-right: 2mm; }
-                        .header h2 { margin: 0; font-size: 16pt; flex-grow: 1; }
-                        .header-qr { display: flex; flex-direction: column; align-items: center; margin-left: 3mm; }
+                        .header h2 { margin: 0; font-size: 21pt; flex-grow: 1; }
+                        .header-qr { display: flex; flex-direction: column; align-items: center; margin-left: -7mm; }
                         .header-qr img { width: 80px; height: 80px; border: 1px solid #000; display: block; }
-                        .header-qr p { margin: 1mm 0 0 0; font-size: 8pt; font-weight: bold; text-align: center; }
+                        .header-qr p { margin: 1mm 0 0 0; font-size: 10pt; font-weight: bold; text-align: center; }
                         .dati { margin-bottom: 2mm; }
-                        .riga { display: flex; justify-content: space-between; margin-bottom: 1mm; font-size: 12pt; }
+                        .riga { display: flex; justify-content: space-between; margin-bottom: 1mm; font-size: 16pt; }
                         .riga span:first-child { font-weight: bold; }
                     </style>
                 </head>
@@ -2106,7 +2106,7 @@ function generaEtichetta() {
             }
             
             // Verifica se compilato
-            stato.rotoli[idx].compilato = stato.rotoli[idx].peso > 0;
+            stato.rotoli[idx].compilato = !!stato.rotoli[idx].codiceBarre;
             
             // Vai al prossimo rotolo
             if (idx < stato.rotoli.length - 1) {
@@ -2284,10 +2284,10 @@ function generaEtichetta() {
                                     width: 35mm !important;
                                 }
                                 .header h2 {
-                                    font-size: 14pt !important;
+                                    font-size: 18pt !important;
                                 }
                                 .riga {
-                                    font-size: 10pt !important;
+                                    font-size: 13pt !important;
                                     margin-bottom: 1mm !important;
                                 }
                                 .header-qr img {
@@ -2300,14 +2300,14 @@ function generaEtichetta() {
                                     width: 25mm !important;
                                 }
                                 .header h2 {
-                                    font-size: 10pt !important;
+                                    font-size: 13pt !important;
                                 }
                                 .riga {
-                                    font-size: 8pt !important;
+                                    font-size: 13pt !important;
                                 }
                             }
                             @page {
-                                size: 160mm 230mm portrait;
+                                size: 160mm 230mm landscape;
                                 margin: 0;
                             }
                             body {
@@ -2340,38 +2340,38 @@ function generaEtichetta() {
                                 height: auto;
                                 margin-right: 2mm;
                             }
-                            .header h2 {
-                                margin: 0;
-                                font-size: 16pt;
-                                flex-grow: 1;
-                            }
-                            .header-qr {
-                                display: flex;
-                                flex-direction: column;
-                                align-items: center;
-                                margin-left: 3mm;
-                            }
-                            .header-qr img {
-                                width: 80px;
-                                height: 80px;
-                                border: 1px solid #000;
-                                display: block;
-                            }
-                            .header-qr p {
-                                margin: 1mm 0 0 0;
-                                font-size: 8pt;
-                                font-weight: bold;
-                                text-align: center;
-                            }
-                            .dati {
-                                margin-bottom: 2mm;
-                            }
-                            .riga {
-                                display: flex;
-                                justify-content: space-between;
-                                margin-bottom: 1mm;
-                                font-size: 12pt;
-                            }
+                             .header h2 {
+                                 margin: 0;
+                                 font-size: 21pt;
+                                 flex-grow: 1;
+                             }
+                             .header-qr {
+                                 display: flex;
+                                 flex-direction: column;
+                                 align-items: center;
+                                 margin-left: -7mm;
+                             }
+                             .header-qr img {
+                                 width: 80px;
+                                 height: 80px;
+                                 border: 1px solid #000;
+                                 display: block;
+                             }
+                             .header-qr p {
+                                 margin: 1mm 0 0 0;
+                                 font-size: 10pt;
+                                 font-weight: bold;
+                                 text-align: center;
+                             }
+                             .dati {
+                                 margin-bottom: 2mm;
+                             }
+                             .riga {
+                                 display: flex;
+                                 justify-content: space-between;
+                                 margin-bottom: 1mm;
+                                 font-size: 16pt;
+                             }
                             .riga span:first-child {
                                 font-weight: bold;
                             }
