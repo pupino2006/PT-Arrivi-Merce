@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="it">
 <head>
     <meta charset="UTF-8">
@@ -472,6 +472,28 @@
             <div class="input-group">
                 <label>Data Arrivo:</label>
                 <input type="date" id="dataArrivo">
+            </div>
+
+            <div class="two-cols">
+                <div class="input-group">
+                    <label>Ora Ingresso:</label>
+                    <input type="time" id="oraIngresso">
+                </div>
+                <div class="input-group">
+                    <label>Numero Persone:</label>
+                    <input type="number" id="numeroPersone" min="0" max="100" value="0">
+                </div>
+            </div>
+
+            <div class="two-cols">
+                <div class="input-group">
+                    <label>Data Uscita:</label>
+                    <input type="date" id="dataUscita">
+                </div>
+                <div class="input-group">
+                    <label>Ora Uscita:</label>
+                    <input type="time" id="oraUscita">
+                </div>
             </div>
             
             <div class="two-cols">
@@ -1733,6 +1755,10 @@ function generaEtichetta() {
             const dataArrivo = document.getElementById('dataArrivo').value;
             const fornitore = document.getElementById('fornitore').value;
             const note = document.getElementById('note').value;
+            const oraIngresso = document.getElementById('oraIngresso').value;
+            const dataUscita = document.getElementById('dataUscita').value;
+            const oraUscita = document.getElementById('oraUscita').value;
+            const numeroPersone = document.getElementById('numeroPersone').value;
             
             const numColli = stato.rotoli.length;
             const totalePeso = stato.rotoli.reduce((sum, r) => sum + (r.peso || 0), 0);
@@ -1761,6 +1787,11 @@ function generaEtichetta() {
                     },
                     body: JSON.stringify({
                         data_arrivo: dataArrivo,
+                        data_ingresso: dataArrivo,
+                        ora_ingresso: oraIngresso || null,
+                        data_uscita: dataUscita || null,
+                        ora_uscita: oraUscita || null,
+                        numero_persone: numeroPersone ? parseInt(numeroPersone) : null,
                         fornitore: fornitore,
                         num_colli: numColli,
                         totale_mq: totaleMQ,
@@ -1804,13 +1835,33 @@ function generaEtichetta() {
                     return;
                 }
                 
-                lista.innerHTML = data.map((item, idx) => `
+                lista.innerHTML = data.map((item, idx) => {
+                    const dataIngresso = item.data_ingresso || item.data_arrivo || '';
+                    const oraIngresso = item.ora_ingresso || '';
+                    const dataUscita = item.data_uscita || '';
+                    const oraUscita = item.ora_uscita || '';
+                    const numeroPersone = item.numero_persone || 0;
+                    
+                    return `
                     <div class="collo-card" style="margin-bottom: 15px; padding: 15px; border-left: 4px solid var(--primary);">
                         <div style="display: flex; justify-content: space-between; align-items: flex-start;">
-                            <div>
+                            <div style="flex: 1;">
                                 <div style="font-weight: bold; color: var(--primary); font-size: 1.1rem;">${item.fornitore || 'Carico'}</div>
-                                <div style="font-size: 0.8rem; margin-top: 5px;">Colli: ${item.num_colli || 0} | MQ: ${item.totale_mq || 0} | KG: ${item.totale_peso || 0}</div>
-                                <div style="font-size: 0.7rem; color: #888;">${item.data_arrivo ? new Date(item.data_arrivo).toLocaleDateString() : ''} - ${item.created_at ? new Date(item.created_at).toLocaleDateString() : ''}</div>
+                                <div style="font-size: 0.8rem; margin-top: 5px;">Colli: ${item.num_colli || 0} | MQ: ${item.totale_mq || 0} | KG: ${item.totale_peso || 0} | Persone: ${numeroPersone}</div>
+                                <div style="font-size: 0.7rem; color: #888; margin-top: 5px;">
+                                    <strong>Ingresso:</strong> 
+                                    <input type="date" value="${dataIngresso}" onchange="aggiornaCampoArchivio(${item.id}, 'data_ingresso', this.value)" style="font-size: 0.7rem; padding: 2px;"> 
+                                    <input type="time" value="${oraIngresso}" onchange="aggiornaCampoArchivio(${item.id}, 'ora_ingresso', this.value)" style="font-size: 0.7rem; padding: 2px;">
+                                </div>
+                                <div style="font-size: 0.7rem; color: #888; margin-top: 3px;">
+                                    <strong>Uscita:</strong> 
+                                    <input type="date" value="${dataUscita}" onchange="aggiornaCampoArchivio(${item.id}, 'data_uscita', this.value)" style="font-size: 0.7rem; padding: 2px;"> 
+                                    <input type="time" value="${oraUscita}" onchange="aggiornaCampoArchivio(${item.id}, 'ora_uscita', this.value)" style="font-size: 0.7rem; padding: 2px;">
+                                </div>
+                                <div style="font-size: 0.7rem; color: #888; margin-top: 3px;">
+                                    <strong>Persone:</strong> 
+                                    <input type="number" value="${numeroPersone}" onchange="aggiornaCampoArchivio(${item.id}, 'numero_persone', this.value)" style="font-size: 0.7rem; padding: 2px; width: 60px;"> 
+                                </div>
                                 ${item.note ? `<div style="font-size: 0.7rem; margin-top: 5px; color: #666;">Note: ${item.note}</div>` : ''}
                             </div>
                             <button onclick="ristampaEtichetteDaArchivio(${idx})" style="
@@ -1825,13 +1876,41 @@ function generaEtichetta() {
                             ">🏷️ Ristampa</button>
                         </div>
                     </div>
-                `).join('');
+                `}).join('');
                 
                 // Salva i dati per uso futuro
                 window.archivioDati = data;
             } catch (err) {
                 console.error('Errore archivio:', err);
                 lista.innerHTML = '<p style="color: red;">Errore nel caricamento dell\'archivio. Verifica che la tabella arrivi_merce esista in Supabase.</p>';
+            }
+        }
+        
+        // ============================================
+        // AGGIORNA CAMPO ARCHIVIO SU SUPABASE
+        // ============================================
+        async function aggiornaCampoArchivio(id, campo, valore) {
+            try {
+                const res = await fetch(`${SB_URL}/rest/v1/arrivi_merce?id=eq.${id}`, {
+                    method: 'PATCH',
+                    headers: {
+                        'apikey': SB_KEY,
+                        'Authorization': `Bearer ${SB_KEY}`,
+                        'Content-Type': 'application/json',
+                        'Prefer': 'return=minimal'
+                    },
+                    body: JSON.stringify({ [campo]: valore || null })
+                });
+                
+                if (!res.ok) {
+                    console.error('Errore aggiornamento:', await res.text());
+                    alert('Errore durante l\'aggiornamento');
+                } else {
+                    console.log(`✅ Campo ${campo} aggiornato per record ${id}`);
+                }
+            } catch (err) {
+                console.error('Errore connection:', err);
+                alert('Errore di connessione');
             }
         }
         
